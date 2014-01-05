@@ -20,6 +20,15 @@ module.exports = function(config) {
     // web server port
     port: 8080,
 
+    // Uncomment the following lines if you are using grunt's server to run the tests
+    // urlRoot: 'http://localhost:9001/',
+    proxies: {
+      '/': 'http://localhost:9001/#/'
+    },
+
+    // URL root prevent conflicts with the site root
+    urlRoot: '_karma_',
+
     // level of logging
     // possible values: LOG_DISABLE || LOG_ERROR || LOG_WARN || LOG_INFO || LOG_DEBUG
     logLevel: config.LOG_INFO,
