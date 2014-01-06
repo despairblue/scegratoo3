@@ -17,6 +17,10 @@ angular.module('scegratooApp', [
         templateUrl: 'views/projects.html',
         controller: 'ProjectsCtrl'
       })
+      .when('/projects/:projectId', {
+        templateUrl: 'views/project.html',
+        controller: 'ProjectCtrl'
+      })
       .otherwise({
         redirectTo: '/projects'
       });
