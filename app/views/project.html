@@ -1,2 +1,9 @@
-<h1>{{project.name}}</h1>
-<p ng-repeat="file in project.files">{{file}}</p>
+</div>
+<div class="marketing">
+  <h3>
+    Files for {{project.name}}
+  </h3>
+  <div ng-repeat="file in project.files" class="row">
+    <a href="#/projects/{{project.name}}/{{file}}">{{file}}</a>
+  </div>
+</div>
