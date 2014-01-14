@@ -44,7 +44,7 @@ describe('Controller: ProjectCtrl', function () {
   // Initialize the controller and a mock scope
   beforeEach(inject(function ($controller, $rootScope, _$httpBackend_, $routeParams) {
     $httpBackend = _$httpBackend_
-    $httpBackend.expectGET('api/v1/project/skeil.json')
+    $httpBackend.expectGET('api/v1/projects/skeil.json')
     .respond(skeilProjectData())
 
     $routeParams.projectId = 'skeil'

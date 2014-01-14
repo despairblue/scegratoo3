@@ -19,7 +19,7 @@ describe('Controller: ProjectsCtrl', function () {
   // Initialize the controller, a mock scope and a mock http backend
   beforeEach(inject(function ($controller, $rootScope, _$httpBackend_) {
     $httpBackend = _$httpBackend_
-    $httpBackend.expectGET('api/v1/project/projects.json').
+    $httpBackend.expectGET('api/v1/projects/projects.json').
       respond([{id: 0, title: 'test'},{id: 1, title: 'orgel'}])
 
     scope = $rootScope.$new()
