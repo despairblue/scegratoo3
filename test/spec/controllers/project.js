@@ -19,8 +19,24 @@ describe('Controller: ProjectCtrl', function () {
     return {
       name: 'skeil',
       files: [
-        'file1',
-        'file2'
+        'foo/bar/file1.js',
+        'bacon/file2.x3d'
+      ]
+    }
+  }
+
+  var expectedSkeilProjectData = function() {
+    return {
+      name: 'skeil',
+      files: [
+        {
+          path: 'foo/bar/file1.js',
+          view: 'source'
+        },
+        {
+          path: 'bacon/file2.x3d',
+          view: 'x3d'
+        }
       ]
     }
   }
@@ -43,7 +59,7 @@ describe('Controller: ProjectCtrl', function () {
     expect(scope.project).toEqualData({})
     $httpBackend.flush()
 
-    expect(scope.project).toEqualData(skeilProjectData())
+    expect(scope.project).toEqualData(expectedSkeilProjectData())
   })
 })
 

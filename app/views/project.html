@@ -2,9 +2,12 @@
 </div>
 <div class="marketing">
   <h3>
-    Files for {{project.name}}
+    Editable files for {{project.name}}
   </h3>
-  <div ng-repeat="file in project.files" class="row">
-    <a href="#/projects/{{project.name}}/{{file}}">{{file}}</a>
+  <div ng-repeat="file in project.files | orderBy:'view'" class="row">
+    <div ng-show="file.view">
+      {{file.view}} -
+      <a href="#/projects/{{file.view}}/{{projectName}}/{{file.path}}">{{file.path}}</a>
+    </div>
   </div>
 </div>

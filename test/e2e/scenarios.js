@@ -11,11 +11,11 @@ describe('SceGraToo App', function() {
 
   describe('Homepage', function() {
     it('should display the correct route', function() {
-      expect(browser().location().path()).toBe('/')
+      expect(browser().location().path()).toBe('/projects')
     })
 
     it('should display 2 items', function() {
-      expect(repeater('.marketing div').count()).toBe(2)
+      expect(repeater('.marketing div').count()).toBe(3)
     })
   })
 
