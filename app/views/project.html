@@ -7,7 +7,7 @@
   <div ng-repeat="file in project.files | orderBy:'view'" class="row">
     <div ng-show="file.view">
       {{file.view}} -
-      <a href="#/projects/{{file.view}}/{{projectName}}/{{file.path}}">{{file.path}}</a>
+      <a href="#/projects/{{projectName}}/{{file.view}}/{{file.path}}">{{file.path}}</a>
     </div>
   </div>
 </div>
