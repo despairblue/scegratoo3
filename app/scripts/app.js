@@ -17,7 +17,7 @@ angular.module('scegratooApp', [
         templateUrl: 'views/projects.html',
         controller: 'ProjectsCtrl'
       })
-      .when('/projects/:projectId', {
+      .when('/projects/:project', {
         templateUrl: 'views/project.html',
         controller: 'ProjectCtrl'
       })

@@ -47,7 +47,7 @@ describe('Controller: ProjectCtrl', function () {
     $httpBackend.expectGET('api/v1/projects/skeil.json')
     .respond(skeilProjectData())
 
-    $routeParams.projectId = 'skeil'
+    $routeParams.project = 'skeil'
 
     scope = $rootScope.$new();
     ProjectCtrl = $controller('ProjectCtrl', {

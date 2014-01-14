@@ -2,9 +2,9 @@
 
 angular.module('scegratooApp')
   .controller('ProjectCtrl', function ($scope, $routeParams, Project) {
-    $scope.project = Project.get({project: $routeParams.projectId}, function(project) {
+    $scope.project = Project.get({project: $routeParams.project}, function(project) {
       // save projectId to url concatenation in the view
-      $scope.projectName = $routeParams.projectId
+      $scope.projectName = $routeParams.project
 
       // convert each file into an object
       project.files.forEach(function(file, index, list) {
