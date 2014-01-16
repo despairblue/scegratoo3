@@ -9,10 +9,9 @@ angular.module('scegratooApp', [
 ])
   .config(function ($routeProvider) {
     $routeProvider
-      // .when('/', {
-      //   templateUrl: 'views/main.html',
-      //   controller: 'MainCtrl'
-      // })
+      .when('/', {
+        redirectTo: '/projects'
+      })
       .when('/projects', {
         templateUrl: 'views/projects.html',
         controller: 'ProjectsCtrl'
