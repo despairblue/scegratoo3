@@ -21,7 +21,11 @@ angular.module('scegratooApp', [
         templateUrl: 'views/project.html',
         controller: 'ProjectCtrl'
       })
-      .otherwise({
-        redirectTo: '/projects'
-      });
+      .when('/projects/:project/x3d/:file*', {
+        templateUrl: 'views/projects/:project/x3d/:file.html',
+        controller: 'ProjectsProjectX3dFileCtrl'
+      })
+      // .otherwise({
+      //   redirectTo: '/projects'
+      // });
   });
