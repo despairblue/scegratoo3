@@ -2,6 +2,9 @@
 
 This Project is part of my bachelor thesis.
 
+## CI Status
+[![Build Status](https://travis-ci.org/despairblue/scegratoo3.png?branch=master)](https://travis-ci.org/despairblue/scegratoo3)
+
 ## Goal
 
 ### Building a web based 3D composition tool.
