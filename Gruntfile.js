@@ -25,6 +25,15 @@ module.exports = function (grunt) {
       dist: 'dist'
     },
 
+    shell: {
+      options: {
+        stdout: true
+      },
+      protractorInstallUpdate: {
+        command: 'node ./node_modules/protractor/bin/webdriver-manager update'
+      }
+    },
+
     // Watches files for changes and runs tasks based on the changed files
     watch: {
       js: {
@@ -88,6 +97,20 @@ module.exports = function (grunt) {
       dist: {
         options: {
           base: '<%= yeoman.dist %>'
+        }
+      }
+    },
+
+    protractor: {
+      options: {
+        keepAlive: true,
+        configFile: 'protractor.conf.js'
+      },
+      singlerun: {
+        options:{
+          args: {
+            baseUrl: 'http://localhost:9001'
+          }
         }
       }
     },
@@ -391,7 +414,8 @@ module.exports = function (grunt) {
     'concurrent:test',
     'autoprefixer',
     'connect:test',
-    'karma:e2e'
+    'shell:protractorInstallUpdate',
+    'protractor:singlerun'
   ]);
 
 

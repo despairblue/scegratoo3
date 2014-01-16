@@ -27,10 +27,11 @@
     "browser": false,
     "describe": false,
     "expect": false,
-    "inject": false,
     "it": false,
-    "spyOn": false,
-    "repeater": false
+    "repeater": false,
+    "element": false,
+    "by": false,
+    "protractor": false
   },
   "debug": true,
   "asi": true
