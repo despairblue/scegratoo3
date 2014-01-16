@@ -7,4 +7,5 @@ angular.module('scegratooApp')
       'AngularJS',
       'Karma'
     ];
+    window.x3dom.reload()
   });
