@@ -12,3 +12,6 @@ app/bower_components
 
 # Compass
 .sass-cache
+
+# Coverage Reports
+coverage
