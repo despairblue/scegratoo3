@@ -4,6 +4,7 @@ angular.module('scegratooApp').directive('sgtNavigationBar', function() {
   return {
     templateUrl: 'views/directives/sgt-navigation-bar.html',
     restrict: 'A',
+    scope: true,
     link: function postLink(scope, element) {
       scope.items = [{
         text: 'X3D',
