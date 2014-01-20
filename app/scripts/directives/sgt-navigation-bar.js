@@ -3,7 +3,7 @@
 angular.module('scegratooApp').directive('sgtNavigationBar', function() {
   return {
     templateUrl: 'views/directives/sgt-navigation-bar.html',
-    restrict: 'A',
+    restrict: 'AE',
     scope: true,
     link: function postLink(scope, element) {
       scope.items = [{
