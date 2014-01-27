@@ -22,6 +22,8 @@ angular.module('scegratooApp')
           case '.x3d':
             file.view = 'x3d'
             break
+          case '.sdf':
+            file.view = 'ssiml'
         }
       })
     })
