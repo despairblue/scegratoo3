@@ -1,0 +1,3 @@
+[submodule "app/api/v1/projects/OrgelRT/src/x3d"]
+	path = app/api/v1/projects/OrgelRT/src/x3d
+	url = ssh://git@elrond.informatik.tu-freiberg.de/ba-arnold
