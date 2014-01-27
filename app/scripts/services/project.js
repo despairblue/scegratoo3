@@ -1,16 +1,15 @@
 'use strict';
 
 angular.module('scegratooApp')
-.service('Project', function Project($resource, $http) {
+.service('Project', function Project($resource, $http, Constants) {
   // AngularJS will instantiate a singleton by calling "new" on this function
-  var apiRoot = 'api/v1'
-  var route = apiRoot + '/projects/:project.:format'
+  var route = Constants.apiRoot + '/projects/:project.:format'
   var resource = $resource(route, {format: 'json'})
   return {
     get: function(params, fn) {
       if (params.file) {
         var url = [
-          apiRoot,
+          Constants.apiRoot,
           'projects',
           encodeURI(params.project),
           encodeURI(params.file)
