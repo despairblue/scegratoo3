@@ -34,8 +34,8 @@ object {
   float:left;
 }
 
-X3D:hover,
-x3d:hover,
+X3D:hover, 
+x3d:hover, 
 .x3dom-canvas:hover {
   -webkit-user-select: none;
   -webkit-touch-callout: none;
@@ -50,7 +50,7 @@ x3d:hover,
 }
 
 .x3dom-canvas:focus {
-    outline:none;
+    outline:none; 
 }
 .x3dom-progress {
     margin: 0;
@@ -194,12 +194,12 @@ x3d:hover,
     opacity: 0.75;
 }
 
-.x3dom-nox3d p {
+.x3dom-nox3d p { 
     color: #fff;
     font-size: 14px;
 }
 
-.x3dom-nox3d a {
+.x3dom-nox3d a { 
     color: #fff;
     font-size: 14px;
 }
@@ -207,9 +207,9 @@ x3d:hover,
 
 /* self-clearing floats */
 .group:after {
-  content: ".";
-  display: block;
-  height: 0;
-  clear: both;
+  content: "."; 
+  display: block; 
+  height: 0; 
+  clear: both; 
   visibility: hidden;
 }

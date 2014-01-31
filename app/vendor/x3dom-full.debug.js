@@ -37601,6 +37601,9030 @@ x3dom.registerNodeType(
     )
 );
 
+/*
+ * X3DOM JavaScript Library
+ * http://www.x3dom.org
+ *
+ * (C)2009 Fraunhofer IGD, Darmstadt, Germany
+ * Dual licensed under the MIT and GPL
+ *
+ * Based on code originally provided by
+ * Philip Taylor: http://philip.html5.org
+ */
+
+
+/* ### GeoCoordinate ### */
+x3dom.registerNodeType(
+    "GeoCoordinate",
+    "Geospatial",
+    defineClass(x3dom.nodeTypes.X3DCoordinateNode,
+        function (ctx) {
+            x3dom.nodeTypes.GeoCoordinate.superClass.call(this, ctx);
+
+            this.addField_MFVec3f(ctx, 'point', []);
+            this.addField_MFString(ctx, 'geoSystem', ['GD', 'WE']);
+            this.addField_SFNode('geoOrigin', x3dom.nodeTypes.GeoOrigin);
+        },
+        {
+            elipsoideParameters:
+            {
+                'AA' : [ 'Airy 1830', '6377563.396', '299.3249646' ],
+                'AM' : [ 'Modified Airy', '6377340.189', '299.3249646' ],
+                'AN' : [ 'Australian National', '6378160', '298.25' ],
+                'BN' : [ 'Bessel 1841 (Namibia)', '6377483.865', '299.1528128' ],
+                'BR' : [ 'Bessel 1841 (Ethiopia Indonesia...)', '6377397.155', '299.1528128' ],
+                'CC' : [ 'Clarke 1866', '6378206.4', '294.9786982' ],
+                'CD' : [ 'Clarke 1880', '6378249.145', '293.465' ],
+                'EA' : [ 'Everest (India 1830)', '6377276.345', '300.8017' ],
+                'EB' : [ 'Everest (Sabah & Sarawak)', '6377298.556', '300.8017' ],
+                'EC' : [ 'Everest (India 1956)', '6377301.243', '300.8017' ],
+                'ED' : [ 'Everest (W. Malaysia 1969)', '6377295.664', '300.8017' ],
+                'EE' : [ 'Everest (W. Malaysia & Singapore 1948)', '6377304.063', '300.8017' ],
+                'EF' : [ 'Everest (Pakistan)', '6377309.613', '300.8017' ],
+                'FA' : [ 'Modified Fischer 1960', '6378155', '298.3' ],
+                'HE' : [ 'Helmert 1906', '6378200', '298.3' ],
+                'HO' : [ 'Hough 1960', '6378270', '297' ],
+                'ID' : [ 'Indonesian 1974', '6378160', '298.247' ],
+                'IN' : [ 'International 1924', '6378388', '297' ],
+                'KA' : [ 'Krassovsky 1940', '6378245', '298.3' ],
+                'RF' : [ 'Geodetic Reference System 1980 (GRS 80)', '6378137', '298.257222101' ],
+                'SA' : [ 'South American 1969', '6378160', '298.25' ],
+                'WD' : [ 'WGS 72', '6378135', '298.26' ],
+                'WE' : [ 'WGS 84', '6378137', '298.257223563' ]
+            },
+
+            fieldChanged: function(fieldName) {
+                if (fieldName == "point" || fieldName == "geoSystem") {
+                    Array.forEach(this._parentNodes, function (node) {
+                        node.fieldChanged("coord");
+                    });
+                }
+            },
+
+            isLogitudeFirst: function(geoSystem) {
+              for(var i=0; i<geoSystem.length; ++i)
+                if(geoSystem[i] == 'longitude_first')
+                  return true;
+
+              return false;
+            },
+
+            getElipsoide: function(geoSystem)
+            {
+              for(var i=0; i<geoSystem.length; ++i)
+              {
+                var code = geoSystem[i];
+                if(this.elipsoideParameters[code])
+                  return this.elipsoideParameters[code];
+              }
+
+              // default elipsoide
+              return this.elipsoideParameters['WE'];
+            },
+
+            getReferenceFrame: function(geoSystem)
+            {
+              for(var i=0; i<geoSystem.length; ++i)
+              {
+                var code = geoSystem[i];
+
+                if(code == 'GD' || code == 'GDC')
+                  return 'GD';
+                if(code == 'GC' || code == 'GCC')
+                  return 'GC';
+                if(code == 'UTM')
+                  return 'UTM';
+
+                else
+                  x3dom.debug.logError('Unknown GEO system: [' + geoSystem + ']');
+              }
+
+              // default elipsoide
+              return this.elipsoideParameters['WE'];
+            },
+
+            UTMtoGC: function(geoSystem, coords) {
+              x3dom.debug.logError('Not implemented GeoCoordinate: UTM');
+            },
+
+            GDtoGC: function(geoSystem, coords) {
+
+              var output = new x3dom.fields.MFVec3f();
+
+              var elipsoide = this.getElipsoide(geoSystem);
+              var radius = elipsoide[1];
+              var eccentricity = elipsoide[2];
+
+              var longitudeFirst = this.isLogitudeFirst(geoSystem);
+
+              // large parts of this code from freeWRL
+              var A = radius;
+              var A2 = radius*radius;
+              var F = 1.0/eccentricity;
+              var C = A*(1.0-F);
+              var C2 = C*C;
+              var Eps2 = F*(2.0-F);
+              var Eps25 = 0.25*Eps2;
+
+              var radiansPerDegree = 0.0174532925199432957692;
+
+              // for (current in coords)
+              for(var i=0; i<coords.length; ++i)
+              {
+                var current = new x3dom.fields.SFVec3f();
+
+                var source_lat = radiansPerDegree * (longitudeFirst == true ? coords[i].y : coords[i].x);
+                var source_lon = radiansPerDegree * (longitudeFirst == true ? coords[i].x : coords[i].y);
+
+                var slat = Math.sin(source_lat);
+                var slat2 = slat*slat;
+                var clat = Math.cos(source_lat);
+
+                /* square root approximation for Rn */
+                var Rn = A / ( (0.25 - Eps25 * slat2 + 0.9999944354799/4.0) +
+                         (0.25-Eps25 * slat2)/(0.25 - Eps25 * slat2 + 0.9999944354799/4.0));
+
+                var RnPh = Rn + coords[i].z;
+
+                current.x = RnPh * clat * Math.cos(source_lon);
+                current.y = RnPh * clat * Math.sin(source_lon);
+                current.z = ((C2 / A2) * Rn + coords[i].z) * slat;
+
+                output.push(current);
+              }
+
+              return output;
+            },
+
+            GEOtoGC: function(geoSystem, geoOrigin, coords)
+            {
+              var referenceFrame = this.getReferenceFrame(geoSystem);
+
+              if(referenceFrame == 'GD')
+                return this.GDtoGC(geoSystem, coords);
+
+              else if(referenceFrame == 'UTM')
+                return this.UTMtoGC(geoSystem, coords);
+
+              else if(referenceFrame ==  'GC')
+              {
+                // Performance Hack
+                // Normaly GDtoGC & UTMtoGC will create a copy
+                // If we are already in GC & have an origin: we have to copy here
+                // Else Origin will change original DOM elements
+
+                if(geoOrigin.node)
+                {
+                  var copy = new x3dom.fields.MFVec3f();
+                  for(var i=0; i<coords.length; ++i)
+                  {
+                    var current = new x3dom.fields.SFVec3f();
+
+                    current.x = coords[i].x;
+                    current.y = coords[i].y;
+                    current.z = coords[i].z;
+
+                    copy.push(current);
+                  }
+                  return copy;
+                }
+                else
+                  return coords;
+              }
+              else {
+                x3dom.debug.logError('Unknown geoSystem: ' + geoSystem[0]);
+                return new x3dom.fields.MFVec3f();
+              }
+            },
+
+            OriginToGC: function(geoOrigin)
+            {
+              // dummy function to send a scalar to an array function
+              var geoCoords = geoOrigin.node._vf.geoCoords;
+              var geoSystem = geoOrigin.node._vf.geoSystem;
+
+              var point = new x3dom.fields.SFVec3f;
+              point.x = geoCoords.x;
+              point.y = geoCoords.y;
+              point.z = geoCoords.z;
+
+              var temp = new x3dom.fields.MFVec3f;
+              temp.push(point);
+
+              // transform origin to GeoCentric
+              var origin = this.GEOtoGC(geoSystem, geoOrigin, temp);
+
+              return origin[0];
+            },
+
+            GEOtoX3D: function(geoSystem, geoOrigin, coords)
+            {
+              // transform points to GeoCentric
+              var gc = this.GEOtoGC(geoSystem, geoOrigin, coords);
+
+              // transform by origin
+              if(geoOrigin.node)
+              {
+                // transform points by origin
+                var origin = this.OriginToGC(geoOrigin);
+
+                var matrix = x3dom.fields.SFMatrix4f.translation(origin);
+                matrix = matrix.inverse();
+
+                for(var i=0; i<coords.length; ++i)
+                  gc[i] = matrix.multMatrixPnt(gc[i]);
+              }
+
+              return gc;
+            },
+
+            getPoints: function()
+            {
+              return this.GEOtoX3D(this._vf.geoSystem, this._cf.geoOrigin, this._vf.point);
+            }
+        }
+    )
+);
+
+/* ### GeoElevationGrid ### */
+x3dom.registerNodeType(
+    "GeoElevationGrid",
+    "Geospatial",
+    defineClass(x3dom.nodeTypes.X3DGeometryNode,
+        function (ctx) {
+            x3dom.nodeTypes.GeoElevationGrid.superClass.call(this, ctx);
+
+            this.addField_MFString(ctx, 'geoSystem', ['GD', 'WE']);
+            this.addField_SFVec3d(ctx, 'geoGridOrigin', 0, 0, 0);
+            this.addField_MFDouble(ctx, 'height', 0, 0);
+            this.addField_SFBool(ctx, 'ccw', true);
+            //this.addField_SFBool(ctx, 'colorPerVertex', true);
+            this.addField_SFDouble(ctx, 'creaseAngle', 0);
+            //this.addField_SFBool(ctx, 'normalPerVertex', true);
+            //this.addField_SFBool(ctx, 'solid', true);
+            this.addField_SFInt32(ctx, 'xDimension', 0);
+            this.addField_SFDouble(ctx, 'xSpacing', 1.0);
+            this.addField_SFFloat(ctx, 'yScale', 1);
+            this.addField_SFInt32(ctx, 'zDimension', 0);
+            this.addField_SFDouble(ctx, 'zSpacing', 1.0);
+            // this.addField_SFNode('color', x3dom.nodeTypes.PropertySetGeometry);
+            // this.addField_SFNode('normal', x3dom.nodeTypes.PropertySetGeometry);
+            // this.addField_SFNode('texCoord', x3dom.nodeTypes.PropertySetGeometry);
+            this.addField_SFNode('geoOrigin', x3dom.nodeTypes.GeoOrigin);
+            this.addField_SFBool(ctx, 'lit', true);
+        },
+        {
+            nodeChanged: function()
+            {
+              var geoSystem = this._vf.geoSystem;
+              var geoOrigin = this._cf.geoOrigin;
+
+              var height = this._vf.height;
+
+              var yScale = this._vf.yScale;
+              var xDimension = this._vf.xDimension;
+              var zDimension = this._vf.zDimension;
+              var xSpacing = this._vf.xSpacing;
+              var zSpacing = this._vf.zSpacing;
+              var geoGridOrigin = this._vf.geoGridOrigin;
+
+              // check for no height == dimensions
+              if(height.length !== (xDimension * zDimension))
+                x3dom.debug.logError('GeoElevationGrid: height.length(' + height.length +
+                                ') != x/zDimension(' + xDimension + '*' + zDimension + ')');
+
+              var longitude_first = x3dom.nodeTypes.GeoCoordinate.prototype.isLogitudeFirst(geoSystem);
+              var ccw = this._vf.ccw;
+
+              // coords, texture coords
+              var delta_x = 1 / (xDimension-1);
+              var delta_z = 1 / (zDimension-1);
+
+              var positions = new x3dom.fields.MFVec3f();
+              var texCoords = new x3dom.fields.MFVec2f();
+
+              for(var z=0; z<zDimension; ++z)
+                for(var x=0; x<xDimension; ++x)
+                {
+                  // texture coord
+                  var tex_coord = new x3dom.fields.SFVec2f(x*delta_x, z*delta_z);
+                  texCoords.push(tex_coord);
+
+                  // coord
+                  var coord = new x3dom.fields.SFVec3f();
+                  if(longitude_first)
+                  {
+                    coord.x = x * xSpacing;
+                    coord.y = z * zSpacing;
+                  }
+                  else
+                  {
+                    coord.x = z * zSpacing;
+                    coord.y = x * xSpacing;
+                  }
+                  coord.z = height[(z*xDimension)+x] * yScale;
+                  coord = coord.add(geoGridOrigin);
+
+                  positions.push(coord);
+                }
+
+              // indices
+              var indices = new x3dom.fields.MFInt32();
+              for(var z=0; z<(zDimension-1); z++)
+              {
+                for(var x=0; x<(xDimension-1); x++)
+                {
+                  var p0 = x + (z * xDimension);
+                  var p1 = x + (z * xDimension) + 1;
+                  var p2 = x + ((z + 1) * xDimension) + 1;
+                  var p3 = x + ((z + 1) * xDimension);
+
+                  if(ccw)
+                  {
+                    indices.push(p0);
+                    indices.push(p1);
+                    indices.push(p2);
+
+                    indices.push(p0);
+                    indices.push(p2);
+                    indices.push(p3);
+                  }
+                  else
+                  {
+                    indices.push(p0);
+                    indices.push(p3);
+                    indices.push(p2);
+
+                    indices.push(p0);
+                    indices.push(p2);
+                    indices.push(p1);
+                  }
+                }
+              }
+
+              // convert to x3dom coord system
+              var transformed = x3dom.nodeTypes.GeoCoordinate.prototype.GEOtoX3D(geoSystem, geoOrigin, positions);
+
+              //if we want flat shading, we have to duplicate some vertices here
+              //(as webgl does only support single-indexed rendering)
+              if (this._vf.creaseAngle <= x3dom.fields.Eps) {
+
+                var that = this;
+
+                (function (){
+                    var indicesFlat   = new x3dom.fields.MFInt32(),
+                        positionsFlat = new x3dom.fields.MFVec3f(),
+                        texCoordsFlat = new x3dom.fields.MFVec3f();
+
+                    that.generateNonIndexedTriangleData(indices, transformed, null, texCoords, null,
+                                                        positionsFlat, null, texCoordsFlat, null);
+
+                    for (var i = 0; i < positionsFlat.length; ++i) {
+                        indicesFlat.push(i);
+                    }
+
+                    that._mesh._indices[0]   = indicesFlat.toGL();
+                    that._mesh._positions[0] = positionsFlat.toGL();
+                    that._mesh._texCoords[0] = texCoordsFlat.toGL();
+                })();
+
+                this._mesh.calcNormals(0);
+              }
+              //smooth shading
+              else {
+                this._mesh._indices[0]   = indices.toGL();
+                this._mesh._positions[0] = transformed.toGL();
+                this._mesh._texCoords[0] = texCoords.toGL();
+
+                this._mesh.calcNormals(Math.PI);
+              }
+
+              this._mesh._invalidate = true;
+              this._mesh._numFaces = this._mesh._indices[0].length / 3;
+              this._mesh._numCoords = this._mesh._positions[0].length / 3;
+            },
+
+            generateNonIndexedTriangleData: function(indices, positions, normals, texCoords, colors,
+                                                     newPositions, newNormals, newTexCoords, newColors)
+            {
+                //@todo: add support for RGBA colors and 3D texture coordinates
+                //@todo: if there is any need for that, add multi-index support
+
+                for (var i = 0; i < indices.length; i+=3) {
+                    var i0 = indices[i  ],
+                        i1 = indices[i+1],
+                        i2 = indices[i+2];
+
+                    if (positions) {
+                        var p0 = new x3dom.fields.SFVec3f(),
+                            p1 = new x3dom.fields.SFVec3f(),
+                            p2 = new x3dom.fields.SFVec3f();
+
+                        p0.setValues(positions[i0]);
+                        p1.setValues(positions[i1]);
+                        p2.setValues(positions[i2]);
+
+                        newPositions.push(p0);
+                        newPositions.push(p1);
+                        newPositions.push(p2);
+                    }
+
+                    if (normals) {
+                        var n0 = new x3dom.fields.SFVec3f(),
+                            n1 = new x3dom.fields.SFVec3f(),
+                            n2 = new x3dom.fields.SFVec3f();
+
+                        n0.setValues(normals[i0]);
+                        n1.setValues(normals[i1]);
+                        n2.setValues(normals[i2]);
+
+                        newNormals.push(n0);
+                        newNormals.push(n1);
+                        newNormals.push(n2);
+                    }
+
+                    if (texCoords) {
+                        var t0 = new x3dom.fields.SFVec2f(),
+                            t1 = new x3dom.fields.SFVec2f(),
+                            t2 = new x3dom.fields.SFVec2f();
+
+                        t0.setValues(texCoords[i0]);
+                        t1.setValues(texCoords[i1]);
+                        t1.setValues(texCoords[i2]);
+
+                        newTexCoords.push(t0);
+                        newTexCoords.push(t1);
+                        newTexCoords.push(t2);
+                    }
+
+                    if (colors) {
+                        var c0 = new x3dom.fields.SFVec3f(),
+                            c1 = new x3dom.fields.SFVec3f(),
+                            c2 = new x3dom.fields.SFVec3f();
+
+                        c0.setValues(texCoords[i0]);
+                        c1.setValues(texCoords[i1]);
+                        c1.setValues(texCoords[i2]);
+
+                        newColors.push(c0);
+                        newColors.push(c1);
+                        newColors.push(c2);
+                    }
+                }
+            }
+        }
+    )
+);
+
+/* ### GeoLOD ### */
+x3dom.registerNodeType(
+    "GeoLOD",
+    "Geospatial",
+    defineClass(x3dom.nodeTypes.X3DLODNode,
+        function (ctx) {
+            x3dom.nodeTypes.GeoLOD.superClass.call(this, ctx);
+
+            this.addField_MFString(ctx, 'geoSystem', ['GD', 'WE']);
+            this.addField_MFString(ctx, 'rootUrl', []);
+            this.addField_MFString(ctx, 'child1Url', []);
+            this.addField_MFString(ctx, 'child2Url', []);
+            this.addField_MFString(ctx, 'child3Url', []);
+            this.addField_MFString(ctx, 'child4Url', []);
+            //this.addField_SFVec3d(ctx, 'center', 0, 0, 0);
+            this.addField_SFFloat(ctx, 'range', 10);
+            this.addField_SFString(ctx, 'referenceBindableDescription', []);
+            this.addField_SFNode('geoOrigin', x3dom.nodeTypes.X3DChildNode);
+            this.addField_SFNode('rootNode', x3dom.nodeTypes.X3DChildNode);
+            this.addField_SFNode('privateChild1Node', x3dom.nodeTypes.X3DChildNode);
+            this.addField_SFNode('privateChild2Node', x3dom.nodeTypes.X3DChildNode);
+            this.addField_SFNode('privateChild3Node', x3dom.nodeTypes.X3DChildNode);
+            this.addField_SFNode('privateChild4Node', x3dom.nodeTypes.X3DChildNode);
+            this.addField_SFNode('privateRootNode', x3dom.nodeTypes.X3DChildNode);
+        }
+    )
+);
+
+/* ### GeoLocation ### */
+x3dom.registerNodeType(
+    "GeoLocation",
+    "Geospatial",
+    defineClass(x3dom.nodeTypes.X3DGroupingNode,
+        function (ctx) {
+            x3dom.nodeTypes.GeoLocation.superClass.call(this, ctx);
+
+            this.addField_MFString(ctx, 'geoSystem', ['GD', 'WE']);
+            this.addField_SFVec3d(ctx, 'geoCoords', 0, 0, 0);
+            this.addField_SFNode('geoOrigin', x3dom.nodeTypes.X3DChildNode);
+        }
+    )
+);
+
+/* ### GeoMetadata ### */
+x3dom.registerNodeType(
+    "GeoMetadata",
+    "Geospatial",
+    defineClass(x3dom.nodeTypes.X3DInfoNode,
+        function (ctx) {
+            x3dom.nodeTypes.GeoMetadata.superClass.call(this, ctx);
+
+            this.addField_MFString(ctx, 'url', []);
+            this.addField_MFNode('data', x3dom.nodeTypes.X3DInfoNode);
+            this.addField_MFString(ctx, 'summary', []);
+        }
+    )
+);
+
+/* ### GeoOrigin ### */
+x3dom.registerNodeType(
+    "GeoOrigin",
+    "Geospatial",
+    defineClass(x3dom.nodeTypes.X3DNode,
+        function (ctx) {
+            x3dom.nodeTypes.GeoOrigin.superClass.call(this, ctx);
+
+            this.addField_MFString(ctx, 'geoSystem', ['GD', 'WE']);
+            this.addField_SFVec3d(ctx, 'geoCoords', 0, 0, 0);
+            this.addField_SFBool(ctx, 'rotateYUp', false);
+        }
+    )
+);
+
+/* ### GeoPositionInterpolator ### */
+x3dom.registerNodeType(
+    "GeoPositionInterpolator",
+    "Geospatial",
+    defineClass(x3dom.nodeTypes.X3DInterpolatorNode,
+        function (ctx) {
+            x3dom.nodeTypes.GeoPositionInterpolator.superClass.call(this, ctx);
+
+            this.addField_MFString(ctx, 'geoSystem', ['GD', 'WE']);
+            this.addField_MFVec3d(ctx, 'keyValue', []);
+            this.addField_SFNode('geoOrigin', x3dom.nodeTypes.X3DInterpolatorNode);
+        }
+    )
+);
+
+/* ### GeoTransform ### */
+x3dom.registerNodeType(
+    "GeoTransform",
+    "Geospatial",
+    defineClass(x3dom.nodeTypes.X3DGroupingNode,
+        function (ctx) {
+            x3dom.nodeTypes.GeoTransform.superClass.call(this, ctx);
+
+            this.addField_SFVec3d(ctx, 'geoCenter', 0, 0, 0);
+            this.addField_SFRotation(ctx, 'rotation', 0, 0, 1, 0);
+            this.addField_SFVec3f(ctx, 'scale', 1, 1, 1);
+            this.addField_SFRotation(ctx, 'scaleOrientation', 0, 0, 1, 0);
+            this.addField_SFVec3f(ctx, 'translation', 0, 0, 0);
+            this.addField_SFNode('geoOrigin', x3dom.nodeTypes.Transform);
+            this.addField_MFString(ctx, 'geoSystem', ['GD', 'WE']);
+        }
+    )
+);
+
+/* ### GeoViewpoint ### */
+x3dom.registerNodeType(
+    "GeoViewpoint",
+    "Geospatial",
+    defineClass(x3dom.nodeTypes.X3DViewpointNode,
+        function (ctx) {
+            x3dom.nodeTypes.GeoViewpoint.superClass.call(this, ctx);
+
+            this.addField_MFString(ctx, 'geoSystem', ['GD', 'WE']);
+            this.addField_SFFloat(ctx, 'fieldOfView', 0.785398);
+            this.addField_SFRotation(ctx, 'orientation', 0, 0, 1, 0);
+            this.addField_SFVec3d(ctx, 'position', 0, 0, 100000);
+            this.addField_SFBool(ctx, 'headlight', true);
+            this.addField_MFString(ctx, 'navType', 'EXAMINE');
+            this.addField_SFFloat(ctx, 'speedFactor', 1.0);
+            this.addField_SFNode('geoOrigin', x3dom.nodeTypes.X3DViewpointNode);
+        }
+    )
+);
+
+/*
+ * X3DOM JavaScript Library
+ * http://www.x3dom.org
+ *
+ * (C)2009 Fraunhofer IGD, Darmstadt, Germany
+ * Dual licensed under the MIT and GPL
+ *
+ * Based on code originally provided by
+ * Philip Taylor: http://philip.html5.org
+ */
+
+
+/* ### X3DPlanarGeometryNode ### */
+x3dom.registerNodeType(
+    "X3DPlanarGeometryNode",
+    "Geometry2D",
+    defineClass(x3dom.nodeTypes.X3DGeometryNode,
+        function (ctx) {
+            x3dom.nodeTypes.X3DPlanarGeometryNode.superClass.call(this, ctx);
+        }
+    )
+);
+
+/* ### Arc2D ### */
+x3dom.registerNodeType(
+    "Arc2D",
+    "Geometry2D",
+    defineClass(x3dom.nodeTypes.X3DPlanarGeometryNode,
+        function (ctx) {
+            x3dom.nodeTypes.Arc2D.superClass.call(this, ctx);
+
+            this.addField_SFFloat(ctx, 'radius', 1);
+            this.addField_SFFloat(ctx, 'startAngle', 0);
+            this.addField_SFFloat(ctx, 'endAngle', 1.570796);
+            this.addField_SFFloat(ctx, 'subdivision', 32);
+
+            this._mesh._primType = 'LINES';
+
+            var r = this._vf.radius;
+            var start = this._vf.startAngle;
+            var end = this._vf.endAngle;
+
+            var geoCacheID = 'Arc2D_' + r + start + end;
+
+            if (this._vf.useGeoCache && x3dom.geoCache[geoCacheID] !== undefined) {
+                //x3dom.debug.logInfo("Using Arc2D from Cache");
+                this._mesh = x3dom.geoCache[geoCacheID];
+            } else {
+
+                var anzahl = this._vf.subdivision;
+                var t = (end - start) / anzahl;
+                var theta = start;
+
+                for (var i = 0; i <= anzahl + 1; i++) {
+                    var x = Math.cos(theta) * r;
+                    var y = Math.sin(theta) * r;
+
+                    this._mesh._positions[0].push(x);
+                    this._mesh._positions[0].push(y);
+                    this._mesh._positions[0].push(0.0);
+                    theta += t;
+                }
+
+                for (var j = 0; j < anzahl; j++) {
+                    this._mesh._indices[0].push(j);
+                    this._mesh._indices[0].push(j + 1);
+                }
+
+                this._mesh._invalidate = true;
+                this._mesh._numFaces = this._mesh._indices[0].length / 2;
+                this._mesh._numCoords = this._mesh._positions[0].length / 3;
+
+                x3dom.geoCache[geoCacheID] = this._mesh;
+            }
+        },
+        {
+            fieldChanged: function (fieldName) {
+                if (fieldName == "radius" || fieldName == "subdivision" ||
+                    fieldName == "startAngle" || fieldName == "endAngle") {
+                    this._mesh._positions[0] = [];
+                    this._mesh._indices[0] = [];
+
+                    var r = this._vf.radius;
+                    var start = this._vf.startAngle;
+                    var end = this._vf.endAngle;
+                    var anzahl = this._vf.subdivision;
+
+                    var t = (end - start) / anzahl;
+                    var theta = start;
+
+                    for (var i = 0; i <= anzahl + 1; i++) {
+                        var x = Math.cos(theta) * r;
+                        var y = Math.sin(theta) * r;
+
+                        this._mesh._positions[0].push(x);
+                        this._mesh._positions[0].push(y);
+                        this._mesh._positions[0].push(0.0);
+                        theta += t;
+                    }
+
+                    for (var j = 0; j < anzahl; j++) {
+                        this._mesh._indices[0].push(j);
+                        this._mesh._indices[0].push(j + 1);
+                    }
+
+                    this.invalidateVolume();
+                    this._mesh._numFaces = this._mesh._indices[0].length / 2;
+                    this._mesh._numCoords = this._mesh._positions[0].length / 3;
+
+                    Array.forEach(this._parentNodes, function (node) {
+                        node._dirty.positions = true;
+                        node._dirty.indexes = true;
+                        node.invalidateVolume();
+                    });
+                }
+            }
+        }
+    )
+);
+
+/* ### ArcClose2D ### */
+x3dom.registerNodeType(
+    "ArcClose2D",
+    "Geometry2D",
+    defineClass(x3dom.nodeTypes.X3DPlanarGeometryNode,
+        function (ctx) {
+            x3dom.nodeTypes.ArcClose2D.superClass.call(this, ctx);
+
+            this.addField_SFString(ctx, 'closureType', "PIE");
+            this.addField_SFFloat(ctx, 'radius', 1);
+            this.addField_SFFloat(ctx, 'startAngle', 0);
+            this.addField_SFFloat(ctx, 'endAngle', 1.570796);
+            this.addField_SFFloat(ctx, 'subdivision', 32);
+
+            var r = this._vf.radius;
+            var start = this._vf.startAngle;
+            var end = this._vf.endAngle;
+
+            var geoCacheID = 'ArcClose2D_' + r + start + end + this._vf.closureType;
+
+            if (this._vf.useGeoCache && x3dom.geoCache[geoCacheID] !== undefined) {
+                //x3dom.debug.logInfo("Using ArcClose2D from Cache");
+                this._mesh = x3dom.geoCache[geoCacheID];
+            } else {
+                var anzahl = this._vf.subdivision;
+                var t = (end - start) / anzahl;
+                var theta = start;
+
+                if (this._vf.closureType == 'PIE') {
+
+                    this._mesh._positions[0].push(0.0);
+                    this._mesh._positions[0].push(0.0);
+                    this._mesh._positions[0].push(0.0);
+
+                    this._mesh._normals[0].push(0);
+                    this._mesh._normals[0].push(0);
+                    this._mesh._normals[0].push(1);
+
+                    this._mesh._texCoords[0].push(0.5);
+                    this._mesh._texCoords[0].push(0.5);
+
+                    for (var i = 0; i <= anzahl; i++) {
+                        var x = Math.cos(theta) * r;
+                        var y = Math.sin(theta) * r;
+
+                        this._mesh._positions[0].push(x);
+                        this._mesh._positions[0].push(y);
+                        this._mesh._positions[0].push(0.0);
+
+                        this._mesh._normals[0].push(0);
+                        this._mesh._normals[0].push(0);
+                        this._mesh._normals[0].push(1);
+
+                        this._mesh._texCoords[0].push((x + r) / (2 * r));
+                        this._mesh._texCoords[0].push((y + r) / (2 * r));
+
+                        theta += t;
+                    }
+
+                    for (var j = 1; j <= anzahl; j++) {
+                        this._mesh._indices[0].push(j + 1);
+                        this._mesh._indices[0].push(0);
+                        this._mesh._indices[0].push(j);
+                    }
+
+                } else {
+                    for (var i = 0; i <= anzahl; i++) {
+                        var x = Math.cos(theta) * r;
+                        var y = Math.sin(theta) * r;
+
+                        this._mesh._positions[0].push(x);
+                        this._mesh._positions[0].push(y);
+                        this._mesh._positions[0].push(0.0);
+
+                        this._mesh._normals[0].push(0);
+                        this._mesh._normals[0].push(0);
+                        this._mesh._normals[0].push(1);
+
+                        this._mesh._texCoords[0].push((x + r) / (2 * r));
+                        this._mesh._texCoords[0].push((y + r) / (2 * r));
+                        theta += t;
+                    }
+
+                    var x = (this._mesh._positions[0][0] + this._mesh._positions[0][this._mesh._positions[0].length - 3]) / 2;
+                    var y = (this._mesh._positions[0][1] + this._mesh._positions[0][this._mesh._positions[0].length - 2]) / 2;
+
+                    this._mesh._positions[0].push(x);
+                    this._mesh._positions[0].push(y);
+                    this._mesh._positions[0].push(0.0);
+
+                    this._mesh._normals[0].push(0);
+                    this._mesh._normals[0].push(0);
+                    this._mesh._normals[0].push(1);
+
+                    this._mesh._texCoords[0].push((x + r) / (2 * r));
+                    this._mesh._texCoords[0].push((y + r) / (2 * r));
+
+                    for (var j = 0; j < anzahl; j++) {
+                        this._mesh._indices[0].push(j + 1);
+                        this._mesh._indices[0].push(anzahl + 1);
+                        this._mesh._indices[0].push(j);
+                    }
+                }
+
+                this._mesh._numTexComponents = 2;
+                this._mesh._invalidate = true;
+                this._mesh._numFaces = this._mesh._indices[0].length / 2;
+                this._mesh._numCoords = this._mesh._positions[0].length / 3;
+
+                x3dom.geoCache[geoCacheID] = this._mesh;
+            }
+        },
+        {
+            fieldChanged: function (fieldName) {
+                if (fieldName === "radius") {
+                    this._mesh._positions[0] = [];
+
+                    var r = this._vf.radius;
+                    var start = this._vf.startAngle;
+                    var end = this._vf.endAngle;
+                    var anzahl = this._vf.subdivision;
+                    var t = (end - start) / anzahl;
+                    var theta = start;
+
+                    if (this._vf.closureType == 'PIE') {
+
+                        this._mesh._positions[0].push(0.0);
+                        this._mesh._positions[0].push(0.0);
+                        this._mesh._positions[0].push(0.0);
+
+                        for (var i = 0; i <= anzahl; i++) {
+                            var x = Math.cos(theta) * r;
+                            var y = Math.sin(theta) * r;
+
+                            this._mesh._positions[0].push(x);
+                            this._mesh._positions[0].push(y);
+                            this._mesh._positions[0].push(0.0);
+
+                            theta += t;
+                        }
+                    } else {
+                        for (var i = 0; i <= anzahl; i++) {
+                            var x = Math.cos(theta) * r;
+                            var y = Math.sin(theta) * r;
+
+                            this._mesh._positions[0].push(x);
+                            this._mesh._positions[0].push(y);
+                            this._mesh._positions[0].push(0.0);
+
+                            theta += t;
+                        }
+
+                        var x = (this._mesh._positions[0][0] + this._mesh._positions[0][this._mesh._positions[0].length - 3]) / 2;
+                        var y = (this._mesh._positions[0][1] + this._mesh._positions[0][this._mesh._positions[0].length - 2]) / 2;
+
+                        this._mesh._positions[0].push(x);
+                        this._mesh._positions[0].push(y);
+                        this._mesh._positions[0].push(0.0);
+                    }
+
+                    this.invalidateVolume();
+                    this._mesh._numCoords = this._mesh._positions[0].length / 3;
+
+                    Array.forEach(this._parentNodes, function (node) {
+                        node._dirty.positions = true;
+                        node.invalidateVolume();
+                    });
+
+                } else if (fieldName == "closureType" || fieldName == "subdivision" ||
+                    fieldName == "startAngle" || fieldName == "endAngle") {
+                    this._mesh._positions[0] = [];
+                    this._mesh._indices[0] = [];
+                    this._mesh._normals[0] = [];
+                    this._mesh._texCoords[0] = [];
+
+                    var r = this._vf.radius;
+                    var start = this._vf.startAngle;
+                    var end = this._vf.endAngle;
+                    var anzahl = this._vf.subdivision;
+                    var t = (end - start) / anzahl;
+                    var theta = start;
+
+                    if (this._vf.closureType == 'PIE') {
+
+                        this._mesh._positions[0].push(0.0);
+                        this._mesh._positions[0].push(0.0);
+                        this._mesh._positions[0].push(0.0);
+
+                        this._mesh._normals[0].push(0);
+                        this._mesh._normals[0].push(0);
+                        this._mesh._normals[0].push(1);
+
+                        this._mesh._texCoords[0].push(0.5);
+                        this._mesh._texCoords[0].push(0.5);
+
+                        for (var i = 0; i <= anzahl; i++) {
+                            var x = Math.cos(theta) * r;
+                            var y = Math.sin(theta) * r;
+
+                            this._mesh._positions[0].push(x);
+                            this._mesh._positions[0].push(y);
+                            this._mesh._positions[0].push(0.0);
+
+                            this._mesh._normals[0].push(0);
+                            this._mesh._normals[0].push(0);
+                            this._mesh._normals[0].push(1);
+
+                            this._mesh._texCoords[0].push((x + r) / (2 * r));
+                            this._mesh._texCoords[0].push((y + r) / (2 * r));
+
+                            theta += t;
+                        }
+
+                        for (var j = 1; j <= anzahl; j++) {
+                            this._mesh._indices[0].push(j + 1);
+                            this._mesh._indices[0].push(0);
+                            this._mesh._indices[0].push(j);
+                        }
+
+                    } else {
+                        for (var i = 0; i <= anzahl; i++) {
+                            var x = Math.cos(theta) * r;
+                            var y = Math.sin(theta) * r;
+
+                            this._mesh._positions[0].push(x);
+                            this._mesh._positions[0].push(y);
+                            this._mesh._positions[0].push(0.0);
+
+                            this._mesh._normals[0].push(0);
+                            this._mesh._normals[0].push(0);
+                            this._mesh._normals[0].push(1);
+
+                            this._mesh._texCoords[0].push((x + r) / (2 * r));
+                            this._mesh._texCoords[0].push((y + r) / (2 * r));
+                            theta += t;
+                        }
+
+                        var x = (this._mesh._positions[0][0] + this._mesh._positions[0][this._mesh._positions[0].length - 3]) / 2;
+                        var y = (this._mesh._positions[0][1] + this._mesh._positions[0][this._mesh._positions[0].length - 2]) / 2;
+
+                        this._mesh._positions[0].push(x);
+                        this._mesh._positions[0].push(y);
+                        this._mesh._positions[0].push(0.0);
+
+                        this._mesh._normals[0].push(0);
+                        this._mesh._normals[0].push(0);
+                        this._mesh._normals[0].push(1);
+
+                        this._mesh._texCoords[0].push((x + r) / (2 * r));
+                        this._mesh._texCoords[0].push((y + r) / (2 * r));
+
+                        for (var j = 0; j < anzahl; j++) {
+                            this._mesh._indices[0].push(j + 1);
+                            this._mesh._indices[0].push(anzahl + 1);
+                            this._mesh._indices[0].push(j);
+                        }
+                    }
+
+                    this._mesh._numTexComponents = 2;
+                    this.invalidateVolume();
+                    this._mesh._numFaces = this._mesh._indices[0].length / 2;
+                    this._mesh._numCoords = this._mesh._positions[0].length / 3;
+
+                    Array.forEach(this._parentNodes, function (node) {
+                        node.setAllDirty();
+                    });
+                }
+            }
+        }
+    )
+);
+
+/* ### Circle2D ### */
+x3dom.registerNodeType(
+    "Circle2D",
+    "Geometry2D",
+    defineClass(x3dom.nodeTypes.X3DPlanarGeometryNode,
+        function (ctx) {
+            x3dom.nodeTypes.Circle2D.superClass.call(this, ctx);
+
+            this.addField_SFFloat(ctx, 'radius', 1);
+            this.addField_SFFloat(ctx, 'subdivision', 32);
+
+            this._mesh._primType = 'LINES';
+
+            var r = this._vf.radius;
+
+            var geoCacheID = 'Circle2D_' + r;
+
+            if (this._vf.useGeoCache && x3dom.geoCache[geoCacheID] !== undefined) {
+                //x3dom.debug.logInfo("Using Circle2D from Cache");
+                this._mesh = x3dom.geoCache[geoCacheID];
+            } else {
+
+                var anzahl = this._vf.subdivision;
+
+                for (var i = 0; i <= anzahl; i++) {
+                    var theta = i * ((2 * Math.PI) / anzahl);
+
+                    var x = Math.cos(theta) * r;
+                    var y = Math.sin(theta) * r;
+
+                    this._mesh._positions[0].push(x);
+                    this._mesh._positions[0].push(y);
+                    this._mesh._positions[0].push(0.0);
+                }
+
+
+                for (i = 0; i < anzahl; i++) {
+                    this._mesh._indices[0].push(i);
+                    if ((i + 1) == anzahl) {
+                        this._mesh._indices[0].push(0);
+                    } else {
+                        this._mesh._indices[0].push(i + 1);
+                    }
+                }
+
+                this._mesh._invalidate = true;
+                this._mesh._numFaces = this._mesh._indices[0].length / 2;
+                this._mesh._numCoords = this._mesh._positions[0].length / 3;
+
+                x3dom.geoCache[geoCacheID] = this._mesh;
+            }
+        },
+        {
+            fieldChanged: function (fieldName) {
+                if (fieldName == "radius" || fieldName == "subdivision") {
+                    var r = this._vf.radius;
+                    var anzahl = this._vf.subdivision;
+
+                    this._mesh._positions[0] = [];
+                    this._mesh._indices[0] = [];
+
+                    for (var i = 0; i <= anzahl; i++) {
+                        var theta = i * ((2 * Math.PI) / anzahl);
+
+                        var x = Math.cos(theta) * r;
+                        var y = Math.sin(theta) * r;
+
+                        this._mesh._positions[0].push(x);
+                        this._mesh._positions[0].push(y);
+                        this._mesh._positions[0].push(0.0);
+                    }
+
+                    for (i = 0; i < anzahl; i++) {
+                        this._mesh._indices[0].push(i);
+                        if ((i + 1) == anzahl) {
+                            this._mesh._indices[0].push(0);
+                        } else {
+                            this._mesh._indices[0].push(i + 1);
+                        }
+                    }
+
+                    this.invalidateVolume();
+                    this._mesh._numFaces = this._mesh._indices[0].length / 2;
+                    this._mesh._numCoords = this._mesh._positions[0].length / 3;
+
+                    Array.forEach(this._parentNodes, function (node) {
+                        node._dirty.positions = true;
+                        node._dirty.indexes = true;
+                        node.invalidateVolume();
+                    });
+                }
+            }
+        }
+    )
+);
+
+/* ### Disk2D ### */
+x3dom.registerNodeType(
+    "Disk2D",
+    "Geometry2D",
+    defineClass(x3dom.nodeTypes.X3DPlanarGeometryNode,
+        function (ctx) {
+            x3dom.nodeTypes.Disk2D.superClass.call(this, ctx);
+
+            this.addField_SFFloat(ctx, 'innerRadius', 0);
+            this.addField_SFFloat(ctx, 'outerRadius', 1);
+            this.addField_SFFloat(ctx, 'subdivision', 32);
+
+            var ir = this._vf.innerRadius;
+            var or = this._vf.outerRadius;
+
+            var geoCacheID = 'Disk2D_' + ir + or;
+
+            if (this._vf.useGeoCache && x3dom.geoCache[geoCacheID] !== undefined) {
+                //x3dom.debug.logInfo("Using Disk2D from Cache");
+                this._mesh = x3dom.geoCache[geoCacheID];
+            } else {
+
+                var anzahl = this._vf.subdivision;
+                for (var i = 0; i <= anzahl; i++) {
+
+                    var theta = i * ((2 * Math.PI) / anzahl);
+
+                    var ox = Math.cos(theta) * or;
+                    var oy = Math.sin(theta) * or;
+                    var ix = Math.cos(theta) * ir;
+                    var iy = Math.sin(theta) * ir;
+                    this._mesh._positions[0].push(ox);
+                    this._mesh._positions[0].push(oy);
+                    this._mesh._positions[0].push(0.0);
+
+                    this._mesh._normals[0].push(0);
+                    this._mesh._normals[0].push(0);
+                    this._mesh._normals[0].push(1);
+
+                    this._mesh._texCoords[0].push((ox + or) / (2 * or));
+                    this._mesh._texCoords[0].push((oy + or) / (2 * or));
+
+                    this._mesh._positions[0].push(ix);
+                    this._mesh._positions[0].push(iy);
+                    this._mesh._positions[0].push(0.0);
+
+                    this._mesh._normals[0].push(0);
+                    this._mesh._normals[0].push(0);
+                    this._mesh._normals[0].push(1);
+                    this._mesh._texCoords[0].push((ix + or) / (2 * or));
+                    this._mesh._texCoords[0].push((iy + or) / (2 * or));
+                }
+
+                for (i = 0; i < anzahl * 2; i = i + 2) {
+                    if (i == (anzahl * 2) - 2) {
+                        this._mesh._indices[0].push(i + 1);
+                        this._mesh._indices[0].push(i);
+                        this._mesh._indices[0].push(1);
+
+                        this._mesh._indices[0].push(1);
+                        this._mesh._indices[0].push(i);
+                        this._mesh._indices[0].push(0);
+                    } else {
+                        this._mesh._indices[0].push(i + 1);
+                        this._mesh._indices[0].push(i);
+                        this._mesh._indices[0].push(i + 3);
+
+                        this._mesh._indices[0].push(i + 3);
+                        this._mesh._indices[0].push(i);
+                        this._mesh._indices[0].push(i + 2);
+                    }
+                }
+
+                this._mesh._numTexComponents = 2;
+                this._mesh._invalidate = true;
+                this._mesh._numFaces = this._mesh._indices[0].length / 2;
+                this._mesh._numCoords = this._mesh._positions[0].length / 3;
+
+                x3dom.geoCache[geoCacheID] = this._mesh;
+            }
+        },
+        {
+            fieldChanged: function (fieldName) {
+                if (fieldName == "innerRadius" || fieldName == "outerRadius" ||
+                    fieldName == "subdivision") {
+                    this._mesh._positions[0] = [];
+                    this._mesh._indices[0] = [];
+                    this._mesh._normals[0] = [];
+                    this._mesh._texCoords[0] = [];
+
+                    var ir = this._vf.innerRadius;
+                    var or = this._vf.outerRadius;
+
+                    var anzahl = this._vf.subdivision;
+                    for (var i = 0; i <= anzahl; i++) {
+
+                        var theta = i * ((2 * Math.PI) / anzahl);
+
+                        var ox = Math.cos(theta) * or;
+                        var oy = Math.sin(theta) * or;
+                        var ix = Math.cos(theta) * ir;
+                        var iy = Math.sin(theta) * ir;
+                        this._mesh._positions[0].push(ox);
+                        this._mesh._positions[0].push(oy);
+                        this._mesh._positions[0].push(0.0);
+
+                        this._mesh._normals[0].push(0);
+                        this._mesh._normals[0].push(0);
+                        this._mesh._normals[0].push(1);
+
+                        this._mesh._texCoords[0].push((ox + or) / (2 * or));
+                        this._mesh._texCoords[0].push((oy + or) / (2 * or));
+
+                        this._mesh._positions[0].push(ix);
+                        this._mesh._positions[0].push(iy);
+                        this._mesh._positions[0].push(0.0);
+
+                        this._mesh._normals[0].push(0);
+                        this._mesh._normals[0].push(0);
+                        this._mesh._normals[0].push(1);
+                        this._mesh._texCoords[0].push((ix + or) / (2 * or));
+                        this._mesh._texCoords[0].push((iy + or) / (2 * or));
+                    }
+
+                    for (i = 0; i < anzahl * 2; i = i + 2) {
+                        if (i == (anzahl * 2) - 2) {
+                            this._mesh._indices[0].push(i + 1);
+                            this._mesh._indices[0].push(i);
+                            this._mesh._indices[0].push(1);
+
+                            this._mesh._indices[0].push(1);
+                            this._mesh._indices[0].push(i);
+                            this._mesh._indices[0].push(0);
+                        } else {
+                            this._mesh._indices[0].push(i + 1);
+                            this._mesh._indices[0].push(i);
+                            this._mesh._indices[0].push(i + 3);
+
+                            this._mesh._indices[0].push(i + 3);
+                            this._mesh._indices[0].push(i);
+                            this._mesh._indices[0].push(i + 2);
+                        }
+                    }
+
+                    this._mesh._numTexComponents = 2;
+                    this.invalidateVolume();
+                    this._mesh._numFaces = this._mesh._indices[0].length / 3;
+                    this._mesh._numCoords = this._mesh._positions[0].length / 3;
+
+                    Array.forEach(this._parentNodes, function (node) {
+                        node.setAllDirty();
+                    });
+                }
+            }
+        }
+    )
+);
+
+/* ### Polyline2D ### */
+x3dom.registerNodeType(
+    "Polyline2D",
+    "Geometry2D",
+    defineClass(x3dom.nodeTypes.X3DPlanarGeometryNode,
+        function (ctx) {
+            x3dom.nodeTypes.Polyline2D.superClass.call(this, ctx);
+
+            this.addField_MFVec2f(ctx, 'lineSegments', []);
+
+            this._mesh._primType = 'LINES';
+
+            var x = 0, y = 0;
+            if (this._vf.lineSegments.length) {
+                x = this._vf.lineSegments[0].x;
+                y = this._vf.lineSegments[0].y;
+            }
+
+            var geoCacheID = 'Polyline2D_' + x + '-' + y;
+
+            if (this._vf.useGeoCache && x3dom.geoCache[geoCacheID] !== undefined) {
+                //x3dom.debug.logInfo("Using Polyline2D from Cache");
+                this._mesh = x3dom.geoCache[geoCacheID];
+            }
+            else {
+                for (var i = 0; i < this._vf.lineSegments.length; i++) {
+                    x = this._vf.lineSegments[i].x;
+                    y = this._vf.lineSegments[i].y;
+                    this._mesh._positions[0].push(x);
+                    this._mesh._positions[0].push(y);
+                    this._mesh._positions[0].push(0.0);
+                }
+                for (var j = 0; j < this._vf.lineSegments.length - 1; j++) {
+                    this._mesh._indices[0].push(j);
+                    this._mesh._indices[0].push(j + 1);
+                }
+
+                this._mesh._invalidate = true;
+                this._mesh._numFaces = this._mesh._indices[0].length / 2;
+                this._mesh._numCoords = this._mesh._positions[0].length / 3;
+
+                x3dom.geoCache[geoCacheID] = this._mesh;
+            }
+        },
+        {
+            fieldChanged: function (fieldName) {
+                if (fieldName == "lineSegments") {
+                    var x, y;
+                    this._mesh._positions[0] = [];
+                    this._mesh._indices[0] = [];
+                    for (var i = 0; i < this._vf.lineSegments.length; i++) {
+                        x = this._vf.lineSegments[i].x;
+                        y = this._vf.lineSegments[i].y;
+                        this._mesh._positions[0].push(x);
+                        this._mesh._positions[0].push(y);
+                        this._mesh._positions[0].push(0.0);
+                    }
+                    for (var j = 0; j < this._vf.lineSegments.length - 1; j++) {
+                        this._mesh._indices[0].push(j);
+                        this._mesh._indices[0].push(j + 1);
+                    }
+
+                    this.invalidateVolume();
+                    this._mesh._numFaces = this._mesh._indices[0].length / 2;
+                    this._mesh._numCoords = this._mesh._positions[0].length / 3;
+
+                    Array.forEach(this._parentNodes, function (node) {
+                        node._dirty.positions = true;
+                        node._dirty.indexes = true;
+                        node.invalidateVolume();
+                    });
+                }
+            }
+        }
+    )
+);
+
+/* ### Polypoint2D ### */
+x3dom.registerNodeType(
+    "Polypoint2D",
+    "Geometry2D",
+    defineClass(x3dom.nodeTypes.X3DPlanarGeometryNode,
+        function (ctx) {
+            x3dom.nodeTypes.Polypoint2D.superClass.call(this, ctx);
+
+            this.addField_MFVec2f(ctx, 'point', []);
+
+            this._mesh._primType = 'POINTS';
+
+            var x = 0, y = 0;
+            if (this._vf.point.length) {
+                x = this._vf.point[0].x;
+                y = this._vf.point[0].y;
+            }
+
+            var geoCacheID = 'Polypoint2D_' + x + '-' + y;
+
+            if (this._vf.useGeoCache && x3dom.geoCache[geoCacheID] !== undefined) {
+                //x3dom.debug.logInfo("Using Polypoint2D from Cache");
+                this._mesh = x3dom.geoCache[geoCacheID];
+            }
+            else {
+                for (var i = 0; i < this._vf.point.length; i++) {
+                    x = this._vf.point[i].x;
+                    y = this._vf.point[i].y;
+                    this._mesh._positions[0].push(x);
+                    this._mesh._positions[0].push(y);
+                    this._mesh._positions[0].push(0.0);
+                }
+
+                this._mesh._invalidate = true;
+                this._mesh._numCoords = this._mesh._positions[0].length / 3;
+
+                x3dom.geoCache[geoCacheID] = this._mesh;
+            }
+        },
+        {
+            fieldChanged: function (fieldName) {
+                if (fieldName == "point") {
+                    this._mesh._positions[0] = [];
+                    this._mesh._indices[0] = [];
+                    for (var i = 0; i < this._vf.point.length; i++) {
+                        var x = this._vf.point[i].x;
+                        var y = this._vf.point[i].y;
+                        this._mesh._positions[0].push(x);
+                        this._mesh._positions[0].push(y);
+                        this._mesh._positions[0].push(0.0);
+                    }
+
+                    this.invalidateVolume();
+                    this._mesh._numCoords = this._mesh._positions[0].length / 3;
+
+                    Array.forEach(this._parentNodes, function (node) {
+                        node._dirty.positions = true;
+                        node.invalidateVolume();
+                    });
+                }
+            }
+        }
+    )
+);
+
+/* ### Rectangle2D ### */
+x3dom.registerNodeType(
+    "Rectangle2D",
+    "Geometry2D",
+    defineClass(x3dom.nodeTypes.X3DPlanarGeometryNode,
+        function (ctx) {
+            x3dom.nodeTypes.Rectangle2D.superClass.call(this, ctx);
+
+            this.addField_SFVec2f(ctx, 'size', 2, 2);
+            this.addField_SFVec2f(ctx, 'subdivision', 1, 1);
+
+            var sx = this._vf.size.x, sy = this._vf.size.y;
+            var partx = this._vf.subdivision.x, party = this._vf.subdivision.y;
+
+            var geoCacheID = 'Rectangle2D_' + sx + '-' + sy;
+
+            if (this._vf.useGeoCache && x3dom.geoCache[geoCacheID] !== undefined) {
+                //x3dom.debug.logInfo("Using Rectangle2D from Cache");
+                this._mesh = x3dom.geoCache[geoCacheID];
+            }
+            else {
+                var xstep = sx / partx;
+                var ystep = sy / party;
+
+                sx /= 2;
+                sy /= 2;
+
+                for (var i = 0; i <= partx; i++) {
+                    for (var j = 0; j <= party; j++) {
+                        this._mesh._positions[0].push(i * xstep - sx, j * ystep - sy, 0);
+                        this._mesh._normals[0].push(0, 0, 1);
+                        this._mesh._texCoords[0].push(i / partx, j / party);
+                    }
+                }
+
+                for (var i = 1; i <= party; i++) {
+                    for (var j = 0; j < partx; j++) {
+                        this._mesh._indices[0].push((i - 1) * (partx + 1) + j + 1);
+                        this._mesh._indices[0].push((i - 1) * (partx + 1) + j);
+                        this._mesh._indices[0].push(i * (partx + 1) + j);
+
+                        this._mesh._indices[0].push((i - 1) * (partx + 1) + j + 1);
+                        this._mesh._indices[0].push(i * (partx + 1) + j);
+                        this._mesh._indices[0].push(i * (partx + 1) + j + 1);
+                    }
+                }
+
+                this._mesh._invalidate = true;
+                this._mesh._numFaces = this._mesh._indices[0].length / 3;
+                this._mesh._numCoords = this._mesh._positions[0].length / 3;
+
+                x3dom.geoCache[geoCacheID] = this._mesh;
+            }
+        },
+        {
+            fieldChanged: function (fieldName) {
+                if (fieldName == "size") {
+                    this._mesh._positions[0] = [];
+                    var size = this._vf.size;
+                    var sx = size.x / 2;
+                    var sy = size.y / 2;
+
+                    var partx = this._vf.subdivision.x, party = this._vf.subdivision.y;
+
+                    var xstep = sx / partx;
+                    var ystep = sy / party;
+
+                    sx /= 2;
+                    sy /= 2;
+
+                    for (var i = 0; i <= partx; i++) {
+                        for (var j = 0; j <= party; j++) {
+                            this._mesh._positions[0].push(i * xstep - sx, j * ystep - sy, 0);
+                        }
+                    }
+
+                    this.invalidateVolume();
+                    this._mesh._numCoords = this._mesh._positions[0].length / 3;
+
+                    Array.forEach(this._parentNodes, function (node) {
+                        node.setAllDirty();
+                    });
+
+                } else if (fieldName == "subdivision") {
+                    this._mesh._positions[0] = [];
+                    this._mesh._indices[0] = [];
+                    this._mesh._normals[0] = [];
+                    this._mesh._texCoords[0] = [];
+
+                    var sx = this._vf.size.x / 2;
+                    var sy = this._vf.size.y / 2;
+
+                    var partx = this._vf.subdivision.x, party = this._vf.subdivision.y;
+                    var xstep = sx / partx;
+                    var ystep = sy / party;
+
+                    sx /= 2;
+                    sy /= 2;
+
+                    for (var i = 0; i <= partx; i++) {
+                        for (var j = 0; j <= party; j++) {
+                            this._mesh._positions[0].push(i * xstep - sx, j * ystep - sy, 0);
+                            this._mesh._normals[0].push(0, 0, 1);
+                            this._mesh._texCoords[0].push(i / partx, j / party);
+                        }
+                    }
+
+                    for (var i = 1; i <= party; i++) {
+                        for (var j = 0; j < partx; j++) {
+                            this._mesh._indices[0].push((i - 1) * (partx + 1) + j + 1);
+                            this._mesh._indices[0].push((i - 1) * (partx + 1) + j);
+                            this._mesh._indices[0].push(i * (partx + 1) + j);
+
+                            this._mesh._indices[0].push((i - 1) * (partx + 1) + j + 1);
+                            this._mesh._indices[0].push(i * (partx + 1) + j);
+                            this._mesh._indices[0].push(i * (partx + 1) + j + 1);
+                        }
+                    }
+
+                    this.invalidateVolume();
+                    this._mesh._numFaces = this._mesh._indices[0].length / 3;
+                    this._mesh._numCoords = this._mesh._positions[0].length / 3;
+
+                    Array.forEach(this._parentNodes, function (node) {
+                        node.setAllDirty();
+                    });
+                }
+            }
+        }
+    )
+);
+
+/* ### TriangleSet2D ### */
+x3dom.registerNodeType(
+    "TriangleSet2D",
+    "Geometry2D",
+    defineClass(x3dom.nodeTypes.X3DPlanarGeometryNode,
+        function (ctx) {
+            x3dom.nodeTypes.TriangleSet2D.superClass.call(this, ctx);
+
+            this.addField_MFVec2f(ctx, 'vertices', []);
+            this.addField_MFVec2f(ctx, 'lineSegments', []);
+
+            var x = 0, y = 0;
+            if (this._vf.vertices.length) {
+                x = this._vf.vertices[0].x;
+                y = this._vf.vertices[0].y;
+            }
+
+            var geoCacheID = 'TriangleSet2D_' + x + '-' + y;
+
+            if (this._vf.useGeoCache && x3dom.geoCache[geoCacheID] !== undefined) {
+                //x3dom.debug.logInfo("Using TriangleSet2D from Cache");
+                this._mesh = x3dom.geoCache[geoCacheID];
+            }
+            else {
+                var minx = 0, miny = 0, maxx = 0, maxy = 0;
+
+                if (this._vf.vertices.length) {
+                    minx = this._vf.vertices[0].x;
+                    miny = this._vf.vertices[0].y;
+                    maxx = this._vf.vertices[0].x;
+                    maxy = this._vf.vertices[0].y;
+                }
+
+                for (var i = 0; i < this._vf.vertices.length; i++) {
+                    if (this._vf.vertices[i].x < minx) {
+                        minx = this._vf.vertices[i].x
+                    }
+                    if (this._vf.vertices[i].y < miny) {
+                        miny = this._vf.vertices[i].y
+                    }
+                    if (this._vf.vertices[i].x > maxx) {
+                        maxx = this._vf.vertices[i].x
+                    }
+                    if (this._vf.vertices[i].y > maxy) {
+                        maxy = this._vf.vertices[i].y
+                    }
+                }
+
+                for (var i = 0; i < this._vf.vertices.length; i++) {
+                    x = this._vf.vertices[i].x;
+                    y = this._vf.vertices[i].y;
+                    this._mesh._positions[0].push(x);
+                    this._mesh._positions[0].push(y);
+                    this._mesh._positions[0].push(0.0);
+
+                    this._mesh._normals[0].push(0);
+                    this._mesh._normals[0].push(0);
+                    this._mesh._normals[0].push(1);
+
+                    this._mesh._texCoords[0].push((x - minx) / (maxx - minx));
+                    this._mesh._texCoords[0].push((y - miny) / (maxy - miny));
+                }
+
+                for (var j = 0; j < this._vf.vertices.length; j += 3) {
+                    this._mesh._indices[0].push(j);
+                    this._mesh._indices[0].push(j + 2);
+                    this._mesh._indices[0].push(j + 1);
+                }
+
+                this._mesh._numTexComponents = 2;
+                this._mesh._invalidate = true;
+                this._mesh._numFaces = this._mesh._indices[0].length / 3;
+                this._mesh._numCoords = this._mesh._positions[0].length / 3;
+
+                x3dom.geoCache[geoCacheID] = this._mesh;
+            }
+        },
+        {
+            fieldChanged: function (fieldName) {
+                if (fieldName == "vertices" || fieldName == "lineSegments") {
+                    this._mesh._positions[0] = [];
+                    this._mesh._indices[0] = [];
+                    this._mesh._normals[0] = [];
+                    this._mesh._texCoords[0] = [];
+
+                    var minx = this._vf.vertices[0].x;
+                    var miny = this._vf.vertices[0].y;
+                    var maxx = this._vf.vertices[0].x;
+                    var maxy = this._vf.vertices[0].y;
+
+                    for (var i = 0; i < this._vf.vertices.length; i++) {
+                        if (this._vf.vertices[i].x < minx) {
+                            minx = this._vf.vertices[i].x
+                        }
+                        if (this._vf.vertices[i].y < miny) {
+                            miny = this._vf.vertices[i].y
+                        }
+                        if (this._vf.vertices[i].x > maxx) {
+                            maxx = this._vf.vertices[i].x
+                        }
+                        if (this._vf.vertices[i].y > maxy) {
+                            maxy = this._vf.vertices[i].y
+                        }
+                    }
+
+                    for (var i = 0; i < this._vf.vertices.length; i++) {
+                        var x = this._vf.vertices[i].x;
+                        var y = this._vf.vertices[i].y;
+                        this._mesh._positions[0].push(x);
+                        this._mesh._positions[0].push(y);
+                        this._mesh._positions[0].push(0.0);
+
+                        this._mesh._normals[0].push(0);
+                        this._mesh._normals[0].push(0);
+                        this._mesh._normals[0].push(1);
+
+                        this._mesh._texCoords[0].push((x - minx) / (maxx - minx));
+                        this._mesh._texCoords[0].push((y - miny) / (maxy - miny));
+                    }
+
+                    for (var j = 0; j < this._vf.vertices.length; j += 3) {
+                        this._mesh._indices[0].push(j);
+                        this._mesh._indices[0].push(j + 2);
+                        this._mesh._indices[0].push(j + 1);
+                    }
+
+                    this._mesh._numTexComponents = 2;
+                    this.invalidateVolume();
+                    this._mesh._numFaces = this._mesh._indices[0].length / 3;
+                    this._mesh._numCoords = this._mesh._positions[0].length / 3;
+
+                    Array.forEach(this._parentNodes, function (node) {
+                        node.setAllDirty();
+                    });
+                }
+            }
+        }
+    )
+);
+
+/*
+ * MEDX3DOM JavaScript Library
+ * http://medx3dom.org
+ *
+ * (C)2011 Vicomtech Research Center,
+ *         Donostia - San Sebastian
+ * Dual licensed under the MIT and GPL.
+ *
+ * Based on code originally provided by
+ * http://www.x3dom.org
+ */
+
+ /**
+  * http://igraphics.com/Standards/ISO_IEC_19775_1_2_PDAM1_Candidate_2011_05_12/Part01/components/volume.html
+  */
+
+/* ### X3DVolumeDataNode ### */
+x3dom.registerNodeType(
+    "X3DVolumeDataNode",
+    "VolumeRendering",
+    defineClass(x3dom.nodeTypes.X3DShapeNode,   // changed inheritance!
+        function (ctx) {
+            x3dom.nodeTypes.X3DVolumeDataNode.superClass.call(this, ctx);
+
+            this.addField_SFVec3f(ctx, 'dimensions', 1, 1, 1);
+            this.addField_SFNode('voxels', x3dom.nodeTypes.Texture);
+            //this.addField_MFNode('voxels', x3dom.nodeTypes.X3DTexture3DNode);
+            //this.addField_SFBool(ctx, 'swapped', false);
+            //this.addField_SFVec3f(ctx, 'sliceThickness', 1, 1, 1);
+
+            x3dom.debug.logWarning('VolumeRendering component NYI!!!');
+        }
+    )
+);
+
+/* ### X3DVolumeRenderStyleNode ### */
+x3dom.registerNodeType(
+    "X3DVolumeRenderStyleNode",
+    "VolumeRendering",
+    defineClass(x3dom.nodeTypes.X3DNode,
+        function (ctx) {
+            x3dom.nodeTypes.X3DVolumeRenderStyleNode.superClass.call(this, ctx);
+
+            this.addField_SFBool(ctx, 'enabled', true);
+        }
+    )
+);
+
+/* ### X3DComposableVolumeRenderStyleNode ### */
+x3dom.registerNodeType(
+    "X3DComposableVolumeRenderStyleNode",
+    "VolumeRendering",
+    defineClass(x3dom.nodeTypes.X3DVolumeRenderStyleNode,
+        function (ctx) {
+            x3dom.nodeTypes.X3DComposableVolumeRenderStyleNode.superClass.call(this, ctx);
+
+            this.addField_SFNode('surfaceNormals', x3dom.nodeTypes.X3DTexture3DNode);
+        }
+    )
+);
+
+/* ### BlendedVolumeStyle ### */
+x3dom.registerNodeType(
+    "BlendedVolumeStyle",
+    "VolumeRendering",
+    defineClass(x3dom.nodeTypes.X3DComposableVolumeRenderStyleNode,
+        function (ctx) {
+            x3dom.nodeTypes.BlendedVolumeStyle.superClass.call(this, ctx);
+
+            this.addField_SFNode('renderStyle', x3dom.nodeTypes.X3DComposableVolumeRenderStyleNode);
+            this.addField_SFNode('voxels', x3dom.nodeTypes.X3DComposableVolumeRenderStyleNode);
+            this.addField_SFFloat(ctx, 'weightConstant1', 0.5);
+            this.addField_SFFloat(ctx, 'weightConstant2', 0.5);
+            this.addField_SFString(ctx, 'weightFunction1', "CONSTANT");
+            this.addField_SFString(ctx, 'weightFunction2', "CONSTANT");
+            this.addField_SFNode('weightTransferFunction1', x3dom.nodeTypes.X3DComposableVolumeRenderStyleNode);
+            this.addField_SFNode('weightTransferFunction2', x3dom.nodeTypes.X3DComposableVolumeRenderStyleNode);
+        }
+    )
+);
+
+/* ### BoundaryEnhancementVolumeStyle ### */
+x3dom.registerNodeType(
+    "BoundaryEnhancementVolumeStyle",
+    "VolumeRendering",
+    defineClass(x3dom.nodeTypes.X3DComposableVolumeRenderStyleNode,
+        function (ctx) {
+            x3dom.nodeTypes.BoundaryEnhancementVolumeStyle.superClass.call(this, ctx);
+
+            this.addField_SFFloat(ctx, 'retainedOpacity', 1);
+            this.addField_SFFloat(ctx, 'boundaryOpacity', 0);
+            this.addField_SFFloat(ctx, 'opacityFactor', 1);
+        }
+    )
+);
+
+/* ### CartoonVolumeStyle ### */
+x3dom.registerNodeType(
+    "CartoonVolumeStyle",
+    "VolumeRendering",
+    defineClass(x3dom.nodeTypes.X3DComposableVolumeRenderStyleNode,
+        function (ctx) {
+            x3dom.nodeTypes.CartoonVolumeStyle.superClass.call(this, ctx);
+
+            this.addField_SFColor(ctx, 'parallelColor', 0, 0, 0);
+            this.addField_SFColor(ctx, 'orthogonalColor', 1, 1, 1);
+            this.addField_SFInt32(ctx, 'colorSteps', 4);
+        }
+    )
+);
+
+/* ### ComposedVolumeStyle ### */
+x3dom.registerNodeType(
+    "ComposedVolumeStyle",
+    "VolumeRendering",
+    defineClass(x3dom.nodeTypes.X3DComposableVolumeRenderStyleNode,
+        function (ctx) {
+            x3dom.nodeTypes.ComposedVolumeStyle.superClass.call(this, ctx);
+
+            this.addField_SFBool(ctx, 'ordered', false);
+            this.addField_MFNode('renderStyle', x3dom.nodeTypes.X3DComposableVolumeRenderStyleNode);
+        }
+    )
+);
+
+/* ### EdgeEnhancementVolumeStyle ### */
+x3dom.registerNodeType(
+    "EdgeEnhancementVolumeStyle",
+    "VolumeRendering",
+    defineClass(x3dom.nodeTypes.X3DComposableVolumeRenderStyleNode,
+        function (ctx) {
+            x3dom.nodeTypes.EdgeEnhancementVolumeStyle.superClass.call(this, ctx);
+
+            this.addField_SFColor(ctx, 'edgeColor', 0, 0, 0);
+            this.addField_SFFloat(ctx, 'gradientThreshold', 0.4);
+        }
+    )
+);
+
+/* ### ISOSurfaceVolumeData ### */
+x3dom.registerNodeType(
+    "ISOSurfaceVolumeData",
+    "VolumeRendering",
+    defineClass(x3dom.nodeTypes.X3DVolumeDataNode,
+        function (ctx) {
+            x3dom.nodeTypes.ISOSurfaceVolumeData.superClass.call(this, ctx);
+
+            this.addField_MFNode('renderStyle', x3dom.nodeTypes.X3DVolumeRenderStyleNode);
+            this.addField_SFNode('gradients', x3dom.nodeTypes.X3DTexture3DNode);
+            this.addField_MFFloat(ctx, 'surfaceValues', []);
+            this.addField_SFFloat(ctx, 'contourStepSize', 0);
+            this.addField_SFFloat(ctx, 'surfaceTolerance', 0);
+        }
+    )
+);
+
+/* ### MPRVolumeStyle ### */
+x3dom.registerNodeType(
+     "MPRVolumeStyle",
+     "VolumeRendering",
+     defineClass(x3dom.nodeTypes.X3DComposableVolumeRenderStyleNode,
+         function (ctx) {
+            x3dom.nodeTypes.MPRVolumeStyle.superClass.call(this, ctx);
+
+            this.addField_SFVec3f(ctx, 'originLine', 1.0, 1.0, 0.0);
+            this.addField_SFVec3f(ctx, 'finalLine', 0.0, 1.0, 0.0);
+            this.addField_SFFloat(ctx, 'positionLine', 0.2);
+
+            this.uniformVec3fOriginLine = new x3dom.nodeTypes.Field(ctx);
+            this.uniformVec3fFinalLine = new x3dom.nodeTypes.Field(ctx);
+            this.uniformFloatPosition = new x3dom.nodeTypes.Field(ctx);
+         },
+         {
+            fieldChanged: function(fieldName) {
+                 if (fieldName == "originLine" ||
+                     fieldName == "finalLine" ||
+                     fieldName == "positionLine") {
+                      //var that = this;
+                      //Array.forEach(this._parentNodes, function (vol) {
+                      //  vol.updateFields("positionLine", that._vf.positionLine);
+                      //});
+                     this.uniformFloatPosition._vf.value = this._vf.positionLine;
+                     this.uniformFloatPosition.fieldChanged("value");
+                 }
+            },
+
+            uniforms: function() {
+                var unis = [];
+/*
+                this.uniformVec3fOriginLine._vf.name = 'originLine';
+                this.uniformVec3fOriginLine._vf.type = 'SFVec3f';
+                this.uniformVec3fOriginLine._vf.value = this._vf.originLine;
+                unis.push(this.uniformVec3fOriginLine);
+
+                this.uniformVec3fFinalLine._vf.name = 'finalLine';
+                this.uniformVec3fFinalLine._vf.type = 'SFVec3f';
+                this.uniformVec3fFinalLine._vf.value = this._vf.finalLine;
+                unis.push(this.uniformVec3fFinalLine);
+*/
+                this.uniformFloatPosition._vf.name = 'positionLine';
+                this.uniformFloatPosition._vf.type = 'SFFloat';
+                this.uniformFloatPosition._vf.value = this._vf.positionLine;
+                unis.push(this.uniformFloatPosition);
+
+                return unis;
+            },
+
+            vertexShaderText : function() {
+                 var shader =
+                "attribute vec3 position;\n"+
+                "attribute vec3 color;\n"+
+                "uniform mat4 modelViewProjectionMatrix;\n"+
+                "varying vec3 vertexColor;\n"+
+                "varying vec4 vertexPosition;\n"+
+                "\n" +
+                "void main()\n"+
+                "{\n"+
+                "  vertexColor = color;\n"+
+                "  vertexPosition = modelViewProjectionMatrix * vec4(position, 1.0);\n"+
+                "  gl_Position = vertexPosition;\n"+
+                "}";
+                return shader;
+            },
+
+            fragmentShaderText : function (numberOfSlices, slicesOverX, slicesOverY) {
+                 var shader =
+                "#ifdef GL_ES\n" +
+                "  precision highp float;\n" +
+                "#endif\n" +
+                "\n" +
+                "uniform sampler2D uBackCoord;\n"+
+                "uniform sampler2D uVolData;\n"+
+                "const vec3 originLine=vec3(1.0,0.0,0.0);\n"+
+                "const vec3 finalLine=vec3(0.0,0.0,0.0);\n"+
+                "uniform float positionLine;\n"+
+                "varying vec3 vertexColor;\n"+
+                "varying vec4 vertexPosition;\n"+
+                "const float Steps = 60.0;\n"+
+                "const float numberOfSlices = "+ numberOfSlices.toPrecision(5)+";\n"+
+                "const float slicesOverX = " + slicesOverX.toPrecision(5) +";\n"+
+                "const float slicesOverY = " + slicesOverY.toPrecision(5) +";\n"+
+                "\n" +
+                "vec4 cTexture3D(sampler2D vol, vec3 volpos, float nS, float nX, float nY)\n"+
+                "{\n"+
+                "  clamp(volpos.x,0.0,1.0);\n"+
+                "  clamp(volpos.y,0.0,1.0);\n"+
+                "  clamp(volpos.z,0.0,1.0);\n"+
+                "  float s1,s2;\n"+
+                "  float dx1,dy1;\n"+
+                "  float dx2,dy2;\n"+
+                "  vec2 texpos1,texpos2;\n"+
+                "  s1 = floor(volpos.z*nS);\n"+
+                "  s2 = s1+1.0;\n"+
+                "  dx1 = fract(s1/nX);\n"+
+                "  dy1 = floor(s1/nY)/nY;\n"+
+                "  dx2 = fract(s2/nX);\n"+
+                "  dy2 = floor(s2/nY)/nY;\n"+
+                "  texpos1.x = dx1+(volpos.x/nX);\n"+
+                "  texpos1.y = dy1+(volpos.y/nY);\n"+
+                "  texpos2.x = dx2+(volpos.x/nX);\n"+
+                "  texpos2.y = dy2+(volpos.y/nY);\n"+
+                "  return mix( texture2D(vol,texpos1), texture2D(vol,texpos2), volpos.z-floor(volpos.z));\n"+
+                "}"+
+                "\n"+
+                "void main()\n"+
+                "{\n"+
+                "  vec2 texC = vertexPosition.xy/vertexPosition.w;\n"+
+                "  texC = 0.5*texC + 0.5;\n"+
+                "  vec4 backColor = texture2D(uBackCoord,texC);\n"+
+                "  vec3 dir =  backColor.xyz -vertexColor.xyz;\n"+
+                "  vec3 normalPlane = finalLine-originLine;\n"+
+                "  vec3 pointLine = normalPlane*positionLine+originLine;\n"+
+                "  float d = dot(pointLine-vertexColor.xyz,normalPlane)/dot(dir,normalPlane);\n"+
+                "  vec4 color = vec4(0.0,0.0,0.0,0.0);\n"+
+                "  vec3 pos = d*dir+vertexColor.rgb;\n"+
+                "  if (!(pos.x > 1.0 || pos.y > 1.0 || pos.z > 1.0 || pos.x<0.0 || pos.y<0.0 || pos.z<0.0)){\n"+
+                "    color = vec4(cTexture3D(uVolData,pos.rgb,numberOfSlices,slicesOverX,slicesOverY).rgb,1.0);\n"+
+                "  }\n"+
+                "  gl_FragColor = color;\n"+
+                "}";
+                return shader;
+            }
+         }
+    )
+);
+
+/* ### OpacityMapVolumeStyle ### */
+x3dom.registerNodeType(
+    "OpacityMapVolumeStyle",
+    "VolumeRendering",
+    defineClass(x3dom.nodeTypes.X3DComposableVolumeRenderStyleNode,
+        function (ctx) {
+            x3dom.nodeTypes.OpacityMapVolumeStyle.superClass.call(this, ctx);
+
+            this.addField_SFNode('transferFunction', x3dom.nodeTypes.Texture);
+            this.addField_SFString(ctx, 'type', "simple");
+            this.addField_SFFloat(ctx, 'opacityFactor', 0.01);
+            this.addField_SFFloat(ctx, 'lightFactor', 0.3);
+
+            this.uniformFloatOpacityFactor = new x3dom.nodeTypes.Field(ctx);
+            this.uniformFloatLightFactor = new x3dom.nodeTypes.Field(ctx);
+            this.uniformSampler2DTransferFunction = new x3dom.nodeTypes.Field(ctx);
+        },
+        {
+            uniforms: function() {
+                var unis = [];
+
+                if (!(this._cf.transferFunction.node==null)) {
+                    this.uniformSampler2DTransferFunction._vf.name = 'uTransferFunction';
+                    this.uniformSampler2DTransferFunction._vf.type = 'SFInt32';
+                    this.uniformSampler2DTransferFunction._vf.value = 2; //FIXME: Number of textures could be variable
+                    unis.push(this.uniformSampler2DTransferFunction);
+                }
+
+                this.uniformFloatOpacityFactor._vf.name = 'opacityFactor';
+                this.uniformFloatOpacityFactor._vf.type = 'SFFloat';
+                this.uniformFloatOpacityFactor._vf.value = this._vf.opacityFactor;
+                unis.push(this.uniformFloatOpacityFactor);
+
+                this.uniformFloatLightFactor._vf.name = 'lightFactor';
+                this.uniformFloatLightFactor._vf.type = 'SFFloat';
+                this.uniformFloatLightFactor._vf.value = this._vf.lightFactor;
+                unis.push(this.uniformFloatLightFactor);
+
+                return unis;
+            },
+
+            textures: function() {
+                var texs = [];
+                if (!(this._cf.transferFunction.node==null)) {
+                    var tex = this._cf.transferFunction.node;
+                    tex._vf.repeatS = false;
+                    tex._vf.repeatT = false;
+                    texs.push(tex)
+                }
+                return texs;
+            },
+
+            vertexShaderText : function() {
+                 var shader =
+                "attribute vec3 position;\n"+
+                "attribute vec3 color;\n"+
+                "uniform mat4 modelViewProjectionMatrix;\n"+
+                "varying vec3 vertexColor;\n"+
+                "varying vec4 vertexPosition;\n"+
+                "\n" +
+                "void main()\n"+
+                "{\n"+
+                "  vertexColor = color;\n"+
+                "  vertexPosition = modelViewProjectionMatrix * vec4(position, 1.0);\n"+
+                "  gl_Position = vertexPosition;\n"+
+                "}";
+                return shader;
+            },
+
+            fragmentShaderText : function (numberOfSlices, slicesOverX, slicesOverY) {
+                 var shader =
+                "#ifdef GL_ES\n" +
+                "  precision highp float;\n" +
+                "#endif\n" +
+                "\n" +
+                "uniform sampler2D uBackCoord;\n"+
+                "uniform sampler2D uVolData;\n";
+                if (!(this._cf.transferFunction.node==null)) {
+                        shader += "uniform sampler2D uTransferFunction;\n";
+                }
+                shader +=
+                "uniform float opacityFactor;\n"+
+                "uniform float lightFactor;\n"+
+                "varying vec3 vertexColor;\n"+
+                "varying vec4 vertexPosition;\n"+
+                "const float Steps = 60.0;\n"+
+                "const float numberOfSlices = "+ numberOfSlices.toPrecision(5)+";\n"+
+                "const float slicesOverX = " + slicesOverX.toPrecision(5) +";\n"+
+                "const float slicesOverY = " + slicesOverY.toPrecision(5) +";\n"+
+                "\n" +
+                "vec4 cTexture3D(sampler2D vol, vec3 volpos, float nS, float nX, float nY)\n"+
+                "{\n"+
+                "  float s1,s2;\n"+
+                "  float dx1,dy1;\n"+
+                "  float dx2,dy2;\n"+
+                "  vec2 texpos1,texpos2;\n"+
+                "  s1 = floor(volpos.z*nS);\n"+
+                "  s2 = s1+1.0;\n"+
+                "  dx1 = fract(s1/nX);\n"+
+                "  dy1 = floor(s1/nY)/nY;\n"+
+                "  dx2 = fract(s2/nX);\n"+
+                "  dy2 = floor(s2/nY)/nY;\n"+
+                "  texpos1.x = dx1+(volpos.x/nX);\n"+
+                "  texpos1.y = dy1+(volpos.y/nY);\n"+
+                "  texpos2.x = dx2+(volpos.x/nX);\n"+
+                "  texpos2.y = dy2+(volpos.y/nY);\n"+
+                "  return mix( texture2D(vol,texpos1), texture2D(vol,texpos2), (volpos.z*nS)-s1);\n"+
+                "}"+
+                "\n"+
+                "void main()\n"+
+                "{\n"+
+                "  vec2 texC = vertexPosition.xy/vertexPosition.w;\n"+
+                "  texC = 0.5*texC + 0.5;\n"+
+                "  vec4 backColor = texture2D(uBackCoord,texC);\n"+
+                "  vec3 dir = backColor.rgb - vertexColor.rgb;\n"+
+                "  vec3 pos = vertexColor;\n"+
+                "  vec4 accum  = vec4(1.0, 1.0, 1.0, 1.0);\n"+
+                "  vec4 sample = vec4(0.0, 0.0, 0.0, 0.0);\n"+
+                "  vec4 value  = vec4(0.0, 0.0, 0.0, 0.0);\n"+
+                "  vec4 color  = vec4(0.0, 0.0, 0.0, 0.0);\n"+
+                "  float cont = 0.0;\n"+
+                "  vec3 step = dir/Steps;\n"+
+                "  for(float i = 0.0; i < Steps; i+=1.0)\n"+
+                "  {\n"+
+                "    color = cTexture3D(uVolData,pos,numberOfSlices,slicesOverX,slicesOverY);\n";
+                if (this._cf.transferFunction.node==null)
+                {
+                        shader += "    value = color;\n";
+                } else {
+                        shader += "    value = texture2D(uTransferFunction,vec2(color.r,0.5));\n";
+                }
+                shader+=
+                "    //Process the volume sample\n"+
+                "    sample.a = value.a * opacityFactor * (1.0/Steps);\n"+
+                "    sample.rgb = value.rgb * lightFactor;\n"+
+                "    accum.rgb -= accum.a * sample.rgb;\n"+
+                "    accum.a -= sample.a;\n"+
+                "    //advance the current position\n"+
+                "    pos.xyz += step;\n"+
+                "    //break if the position is greater than <1, 1, 1>\n"+
+                "    if(pos.x > 1.0 || pos.y > 1.0 || pos.z > 1.0 || accum.a<=0.0)\n"+
+                "      break;\n"+
+                "}\n"+
+                "gl_FragColor = vec4(1.0-accum.rgb,accum.a);\n"+
+                "}";
+                return shader;
+            }
+        }
+    )
+);
+
+/* ### ProjectionVolumeStyle ### */
+x3dom.registerNodeType(
+    "ProjectionVolumeStyle",
+    "VolumeRendering",
+    defineClass(x3dom.nodeTypes.X3DVolumeRenderStyleNode,
+        function (ctx) {
+            x3dom.nodeTypes.ProjectionVolumeStyle.superClass.call(this, ctx);
+
+            this.addField_SFFloat(ctx, 'intensityThreshold', 0);
+            this.addField_SFString(ctx, 'type', "MAX");
+        }
+    )
+);
+
+/* ### SegmentedVolumeData ### */
+x3dom.registerNodeType(
+    "SegmentedVolumeData",
+    "VolumeRendering",
+    defineClass(x3dom.nodeTypes.X3DVolumeDataNode,
+        function (ctx) {
+            x3dom.nodeTypes.SegmentedVolumeData.superClass.call(this, ctx);
+
+            this.addField_MFNode('renderStyle', x3dom.nodeTypes.X3DVolumeDataNode);
+            //this.addField_MFBool(ctx, 'segmentEnabled', []);  // MFBool NYI!!!
+            this.addField_SFNode('segmentIdentifiers', x3dom.nodeTypes.X3DVolumeDataNode);
+        }
+    )
+);
+
+/* ### ShadedVolumeStyle ### */
+x3dom.registerNodeType(
+    "ShadedVolumeStyle",
+    "VolumeRendering",
+    defineClass(x3dom.nodeTypes.X3DComposableVolumeRenderStyleNode,
+        function (ctx) {
+            x3dom.nodeTypes.ShadedVolumeStyle.superClass.call(this, ctx);
+
+            this.addField_SFNode('material', x3dom.nodeTypes.X3DMaterialNode);
+            this.addField_SFBool(ctx, 'lighting', false);
+            this.addField_SFBool(ctx, 'shadows', false);
+            this.addField_SFString(ctx, 'phaseFunction', "Henyey-Greenstein");
+        }
+    )
+);
+
+/* ### SilhouetteEnhancementVolumeStyle ### */
+x3dom.registerNodeType(
+    "SilhouetteEnhancementVolumeStyle",
+    "VolumeRendering",
+    defineClass(x3dom.nodeTypes.X3DComposableVolumeRenderStyleNode,
+        function (ctx) {
+            x3dom.nodeTypes.SilhouetteEnhancementVolumeStyle.superClass.call(this, ctx);
+
+            this.addField_SFFloat(ctx, 'silhouetteBoundaryOpacity', 0);
+            this.addField_SFFloat(ctx, 'silhouetteRetainedOpacity', 1);
+            this.addField_SFFloat(ctx, 'silhouetteSharpness', 0.5);
+        }
+    )
+);
+
+/* ### StippleVolumeStyle ### */
+x3dom.registerNodeType(
+    "StippleVolumeStyle",
+    "VolumeRendering",
+    defineClass(x3dom.nodeTypes.X3DVolumeRenderStyleNode,
+        function (ctx) {
+            x3dom.nodeTypes.StippleVolumeStyle.superClass.call(this, ctx);
+
+            this.addField_SFFloat(ctx, 'distanceFactor', 1);
+            this.addField_SFFloat(ctx, 'interiorFactor', 1);
+            this.addField_SFFloat(ctx, 'lightingFactor', 1);
+            this.addField_SFFloat(ctx, 'gradientThreshold', 0.4);
+            this.addField_SFFloat(ctx, 'gradientRetainedOpacity', 1);
+            this.addField_SFFloat(ctx, 'gradientBoundaryOpacity', 0);
+            this.addField_SFFloat(ctx, 'gradientOpacityFactor', 1);
+            this.addField_SFFloat(ctx, 'silhouetteRetainedOpacity', 1);
+            this.addField_SFFloat(ctx, 'silhouetteBoundaryOpacity', 0);
+            this.addField_SFFloat(ctx, 'silhouetteOpacityFactor', 1);
+            this.addField_SFFloat(ctx, 'resolutionFactor', 1);
+        }
+    )
+);
+
+/* ### ToneMappedVolumeStyle ### */
+x3dom.registerNodeType(
+    "ToneMappedVolumeStyle",
+    "VolumeRendering",
+    defineClass(x3dom.nodeTypes.X3DComposableVolumeRenderStyleNode,
+        function (ctx) {
+            x3dom.nodeTypes.ToneMappedVolumeStyle.superClass.call(this, ctx);
+
+            this.addField_SFColor(ctx, 'coolColor', 0, 0, 1);
+            this.addField_SFColor(ctx, 'warmColor', 1, 1, 0);
+        }
+    )
+);
+
+//FIXME: Not a real X3D Node but auxiliary geometry
+/* ### ColorBox ### */
+x3dom.registerNodeType(
+    "ColorBox",
+    "Geometry3D",
+    defineClass(x3dom.nodeTypes.X3DSpatialGeometryNode,
+        function (ctx) {
+            x3dom.nodeTypes.ColorBox.superClass.call(this, ctx);
+
+            this.addField_SFVec3f(ctx, 'size', 1, 1, 1);
+
+            var sx = this._vf.size.x,
+                sy = this._vf.size.y,
+                sz = this._vf.size.z;
+
+            var geoCacheID = 'ColorBox_'+sx+'-'+sy+'-'+sz;
+
+            if( this._vf.useGeoCache && x3dom.geoCache[geoCacheID] !== undefined )
+            {
+                  this._mesh = x3dom.geoCache[geoCacheID];
+            }
+            else
+            {
+                  sx /= 2; sy /= 2; sz /= 2;
+
+                  this._mesh._positions[0] = [
+                        -sx,-sy,-sz,  -sx, sy,-sz,   sx, sy,-sz,   sx,-sy,-sz, //back   0,0,-1
+                        -sx,-sy, sz,  -sx, sy, sz,   sx, sy, sz,   sx,-sy, sz, //front  0,0,1
+                        -sx,-sy,-sz,  -sx,-sy, sz,  -sx, sy, sz,  -sx, sy,-sz, //left   -1,0,0
+                         sx,-sy,-sz,   sx,-sy, sz,   sx, sy, sz,   sx, sy,-sz, //right  1,0,0
+                        -sx, sy,-sz,  -sx, sy, sz,   sx, sy, sz,   sx, sy,-sz, //top    0,1,0
+                        -sx,-sy,-sz,  -sx,-sy, sz,   sx,-sy, sz,   sx,-sy,-sz  //bottom 0,-1,0
+                  ];
+
+                  this._mesh._colors[0] = [
+                        0, 0, 0,  0, 1, 0,  1, 1, 0,  1, 0, 0,
+                        0, 0, 1,  0, 1, 1,  1, 1, 1,  1, 0, 1,
+                        0, 0, 0,  0, 0, 1,  0, 1, 1,  0, 1, 0,
+                        1, 0, 0,  1, 0, 1,  1, 1, 1,  1, 1, 0,
+                        0, 1, 0,  0, 1, 1,  1, 1, 1,  1, 1, 0,
+                        0, 0, 0,  0, 0, 1,  1, 0, 1,  1, 0, 0
+                  ];
+
+                  this._mesh._normals[0] = [
+                         0,  0, -1,   0,  0, -1,   0,  0, -1,   0,  0, -1,
+                         0,  0,  1,   0,  0,  1,   0,  0,  1,   0,  0,  1,
+                        -1,  0,  0,  -1,  0,  0,  -1,  0,  0,  -1,  0,  0,
+                         1,  0,  0,   1,  0,  0,   1,  0,  0,   1,  0,  0,
+                         0,  1,  0,   0,  1,  0,   0,  1,  0,   0,  1,  0,
+                         0, -1,  0,   0, -1,  0,   0, -1,  0,   0, -1,  0
+                  ];
+
+                  this._mesh._indices[0] = [
+                         0,  1,  2,   2,  3,  0,
+                         4,  7,  5,   5,  7,  6,
+                         8,  9, 10,  10, 11,  8,
+                        12, 14, 13,  14, 12, 15,
+                        16, 17, 18,  18, 19, 16,
+                        20, 22, 21,  22, 20, 23
+                  ];
+
+                  this._mesh._invalidate = true;
+                  this._mesh._numFaces = 12;
+                  this._mesh._numCoords = 24;
+
+                  x3dom.geoCache[geoCacheID] = this._mesh;
+            }
+        },
+        {
+            fieldChanged: function(fieldName) {
+                if (fieldName === "size") {
+                    var sx = this._vf.size.x / 2,
+                        sy = this._vf.size.y / 2,
+                        sz = this._vf.size.z / 2;
+
+                    this._mesh._positions[0] = [
+                           -sx,-sy,-sz,  -sx, sy,-sz,   sx, sy,-sz,   sx,-sy,-sz, //back   0,0,-1
+                           -sx,-sy, sz,  -sx, sy, sz,   sx, sy, sz,   sx,-sy, sz, //front  0,0,1
+                           -sx,-sy,-sz,  -sx,-sy, sz,  -sx, sy, sz,  -sx, sy,-sz, //left   -1,0,0
+                            sx,-sy,-sz,   sx,-sy, sz,   sx, sy, sz,   sx, sy,-sz, //right  1,0,0
+                           -sx, sy,-sz,  -sx, sy, sz,   sx, sy, sz,   sx, sy,-sz, //top    0,1,0
+                           -sx,-sy,-sz,  -sx,-sy, sz,   sx,-sy, sz,   sx,-sy,-sz  //bottom 0,-1,0
+                    ];
+
+                    this.invalidateVolume();
+
+                    Array.forEach(this._parentNodes, function (node) {
+                        node._dirty.positions = true;
+                        node.invalidateVolume();
+                    });
+                }
+            }
+        }
+    )
+);
+
+/* ### VolumeData ### */
+x3dom.registerNodeType(
+    "VolumeData",
+    "VolumeRendering",
+    defineClass(x3dom.nodeTypes.X3DVolumeDataNode,
+        function (ctx) {
+            x3dom.nodeTypes.VolumeData.superClass.call(this, ctx);
+
+            this.addField_SFNode('renderStyle', x3dom.nodeTypes.X3DVolumeRenderStyleNode);
+
+            this.vrcMultiTexture = new x3dom.nodeTypes.MultiTexture(ctx);
+            this.vrcRenderTexture = new x3dom.nodeTypes.RenderedTexture(ctx);
+            this.vrcVolumeTexture = null;
+
+            this.vrcBackCubeShape = new x3dom.nodeTypes.Shape(ctx);
+            this.vrcBackCubeAppearance = new x3dom.nodeTypes.Appearance();
+            this.vrcBackCubeGeometry = new x3dom.nodeTypes.ColorBox(ctx);
+            this.vrcBackCubeShader = new x3dom.nodeTypes.ComposedShader(ctx);
+            this.vrcBackCubeShaderVertex = new x3dom.nodeTypes.ShaderPart(ctx);
+            this.vrcBackCubeShaderFragment = new x3dom.nodeTypes.ShaderPart(ctx);
+
+            this.vrcFrontCubeShader = new x3dom.nodeTypes.ComposedShader(ctx);
+            this.vrcFrontCubeShaderVertex = new x3dom.nodeTypes.ShaderPart(ctx);
+            this.vrcFrontCubeShaderFragment = new x3dom.nodeTypes.ShaderPart(ctx);
+            this.vrcFrontCubeShaderFieldBackCoord = new x3dom.nodeTypes.Field(ctx);
+            this.vrcFrontCubeShaderFieldVolData = new x3dom.nodeTypes.Field(ctx);
+        },
+        {
+            // nodeChanged is called after subtree is parsed and attached in DOM
+            nodeChanged: function()
+            {
+                // uhhhh, manually build backend-graph scene-subtree,
+                // therefore, try to mimic depth-first parsing scheme
+                if (!this._cf.appearance.node)
+                {
+                    this.addChild(x3dom.nodeTypes.Appearance.defaultNode());
+
+                    // second texture, ray direction and length
+                    this.vrcBackCubeShaderVertex._vf.type = 'vertex';
+                    this.vrcBackCubeShaderVertex._vf.url[0] =
+                        "attribute vec3 position;\n" +
+                        "attribute vec3 color;\n" +
+                        "varying vec3 fragColor;\n" +
+                        "uniform mat4 modelViewProjectionMatrix;\n" +
+                        "\n" +
+                        "void main(void) {\n" +
+                        "    fragColor = color;\n" +
+                        "    gl_Position = modelViewProjectionMatrix * vec4(position, 1.0);\n" +
+                        "}\n";
+
+                    this.vrcBackCubeShaderFragment._vf.type = 'fragment';
+                    this.vrcBackCubeShaderFragment._vf.url[0] =
+                        "#ifdef GL_ES\n" +
+                        "  precision highp float;\n" +
+                        "#endif\n" +
+                        "\n" +
+                        "varying vec3 fragColor;\n" +
+                        "\n" +
+                        "void main(void) {\n" +
+                        "    gl_FragColor = vec4(fragColor, 1.0);\n" +
+                        "}\n";
+
+                    this.vrcBackCubeShader.addChild(this.vrcBackCubeShaderFragment, 'parts');
+                    this.vrcBackCubeShaderFragment.nodeChanged();
+
+                    this.vrcBackCubeShader.addChild(this.vrcBackCubeShaderVertex, 'parts');
+                    this.vrcBackCubeShaderVertex.nodeChanged();
+
+                    this.vrcBackCubeAppearance.addChild(this.vrcBackCubeShader);
+                    this.vrcBackCubeShader.nodeChanged();
+
+                    // initialize fbo - note that internally the datatypes must fit!
+                    this.vrcRenderTexture._vf.update = 'always';
+                    this.vrcRenderTexture._vf.dimensions = [500, 500, 4];
+                    this.vrcRenderTexture._vf.repeatS = false;
+                    this.vrcRenderTexture._vf.repeatT = false;
+                    this.vrcRenderTexture._nameSpace = this._nameSpace;
+
+                    this.vrcBackCubeGeometry._vf.size = new x3dom.fields.SFVec3f(
+                        this._vf.dimensions.x, this._vf.dimensions.y, this._vf.dimensions.z);
+                    this.vrcBackCubeGeometry._vf.ccw = false;
+                    this.vrcBackCubeGeometry._vf.solid = true;
+                    // manually trigger size update
+                    this.vrcBackCubeGeometry.fieldChanged("size");
+
+                    this.vrcBackCubeShape.addChild(this.vrcBackCubeGeometry);
+                    this.vrcBackCubeGeometry.nodeChanged();
+
+                    this.vrcBackCubeShape.addChild(this.vrcBackCubeAppearance);
+                    this.vrcBackCubeAppearance.nodeChanged();
+
+                    this.vrcRenderTexture.addChild(this.vrcBackCubeShape, 'scene');
+                    this.vrcBackCubeShape.nodeChanged();
+
+                    // create shortcut to volume data set
+                    this.vrcVolumeTexture = this._cf.voxels.node;
+                    this.vrcVolumeTexture._vf.repeatS = false;
+                    this.vrcVolumeTexture._vf.repeatT = false;
+
+                    this.vrcMultiTexture._nameSpace = this._nameSpace;
+
+                    this.vrcMultiTexture.addChild(this.vrcRenderTexture, 'texture');
+                    this.vrcRenderTexture.nodeChanged();
+
+                    this.vrcMultiTexture.addChild(this.vrcVolumeTexture, 'texture');
+                    this.vrcVolumeTexture.nodeChanged();
+
+                    // textures from styles
+                    if (this._cf.renderStyle.node.textures != undefined){
+                        var styleTextures = this._cf.renderStyle.node.textures();
+                        for (var i = 0; i< styleTextures.length; i++)
+                        {
+                            this.vrcMultiTexture.addChild(styleTextures[i], 'texture');
+                            this.vrcVolumeTexture.nodeChanged();
+                        }
+                    }
+
+                    this._cf.appearance.node.addChild(this.vrcMultiTexture);
+                    this.vrcMultiTexture.nodeChanged();
+
+                    // here goes the volume shader
+                    this.vrcFrontCubeShaderVertex._vf.type = 'vertex';
+                    this.vrcFrontCubeShaderVertex._vf.url[0]=this._cf.renderStyle.node.vertexShaderText();
+
+                    this.vrcFrontCubeShaderFragment._vf.type = 'fragment';
+                    this.vrcFrontCubeShaderFragment._vf.url[0]=this._cf.renderStyle.node.fragmentShaderText(
+                        this.vrcVolumeTexture._vf.numberOfSlices, this.vrcVolumeTexture._vf.slicesOverX, this.vrcVolumeTexture._vf.slicesOverY);
+
+                    this.vrcFrontCubeShader.addChild(this.vrcFrontCubeShaderVertex, 'parts');
+                    this.vrcFrontCubeShaderVertex.nodeChanged();
+
+                    this.vrcFrontCubeShader.addChild(this.vrcFrontCubeShaderFragment, 'parts');
+                    this.vrcFrontCubeShaderFragment.nodeChanged();
+
+                    this.vrcFrontCubeShaderFieldBackCoord._vf.name = 'uBackCoord';
+                    this.vrcFrontCubeShaderFieldBackCoord._vf.type = 'SFInt32';
+                    this.vrcFrontCubeShaderFieldBackCoord._vf.value = 0;
+
+                    this.vrcFrontCubeShaderFieldVolData._vf.name = 'uVolData';
+                    this.vrcFrontCubeShaderFieldVolData._vf.type = 'SFInt32';
+                    this.vrcFrontCubeShaderFieldVolData._vf.value = 1;
+
+                    this.vrcFrontCubeShader.addChild(this.vrcFrontCubeShaderFieldBackCoord, 'fields');
+                    this.vrcFrontCubeShaderFieldBackCoord.nodeChanged();
+
+                    this.vrcFrontCubeShader.addChild(this.vrcFrontCubeShaderFieldVolData, 'fields');
+                    this.vrcFrontCubeShaderFieldVolData.nodeChanged();
+
+                    var ShaderUniforms = this._cf.renderStyle.node.uniforms()
+                    for (var i = 0; i<ShaderUniforms.length; i++)
+                    {
+                        this.vrcFrontCubeShader.addChild(ShaderUniforms[i], 'fields');
+                    }
+                    this.vrcFrontCubeShaderFieldVolData.nodeChanged();
+
+                    this._cf.appearance.node.addChild(this.vrcFrontCubeShader);
+                    this.vrcFrontCubeShader.nodeChanged();
+
+                    this._cf.appearance.node.nodeChanged();
+                }
+
+                if (!this._cf.geometry.node) {
+                    this.addChild(new x3dom.nodeTypes.ColorBox());
+
+                    this._cf.geometry.node._vf.size = new x3dom.fields.SFVec3f(
+                        this._vf.dimensions.x, this._vf.dimensions.y, this._vf.dimensions.z);
+                    this._cf.geometry.node._vf.ccw = true;
+                    this._cf.geometry.node._vf.solid = true;
+
+                    // workaround to trigger field change...
+                    this._cf.geometry.node.fieldChanged("size");
+                }
+            }
+        }
+    )
+);
+
+/*
+ * CADGeometry:
+ * CADGeometry component of X3D extension to the
+ * X3DOM JavaScript Library
+ * http://x3dom.org
+ *
+
+ * Closely adapted from the code for the Grouping components in X3D as
+ * implemented in X3DOM
+
+ Dual licensed under the MIT and GPL.
+ http://x3dom.org/download/dev/docs/html/license.html
+
+ * Based on code originally provided by
+ *  Philip Taylor: http://philip.html5.org
+
+ * 19 Nov 2012  Vincent Marchetti:  vmarchetti@kshell.com
+ * 25 May 2013  -- implemented QuadSet, IndexedQuadSet; based largely on the code
+                for IndexedTriangleSet in Rendering.js
+ */
+
+
+// ### IndexedQuadSet ###
+x3dom.registerNodeType(
+    "IndexedQuadSet",
+    "CADGeometry",
+    defineClass(x3dom.nodeTypes.X3DComposedGeometryNode,
+        function (ctx) {
+            x3dom.nodeTypes.IndexedQuadSet.superClass.call(this, ctx);
+
+            this.addField_MFInt32(ctx, 'index', []);
+        },
+        {
+            nodeChanged: function()
+            {
+                /*
+                This code largely taken from the IndexedTriangleSet code
+                */
+                var time0 = new Date().getTime();
+
+                this.handleAttribs();
+
+				var colPerVert = this._vf.colorPerVertex;
+                var normPerVert = this._vf.normalPerVertex;
+
+                var indexes = this._vf.index;
+
+                var hasNormal = false, hasTexCoord = false, hasColor = false;
+                var positions, normals, texCoords, colors;
+
+                var coordNode = this._cf.coord.node;
+                x3dom.debug.assert(coordNode);
+                positions = coordNode._vf.point;
+
+                var normalNode = this._cf.normal.node;
+                if (normalNode) {
+                    hasNormal = true;
+                    normals = normalNode._vf.vector;
+                }
+                else {
+                    hasNormal = false;
+                }
+
+                var texMode = "", numTexComponents = 2;
+                var texCoordNode = this._cf.texCoord.node;
+                if (x3dom.isa(texCoordNode, x3dom.nodeTypes.MultiTextureCoordinate)) {
+                    if (texCoordNode._cf.texCoord.nodes.length)
+                        texCoordNode = texCoordNode._cf.texCoord.nodes[0];
+                }
+                if (texCoordNode) {
+                    if (texCoordNode._vf.point) {
+                        hasTexCoord = true;
+                        texCoords = texCoordNode._vf.point;
+
+                        if (x3dom.isa(texCoordNode, x3dom.nodeTypes.TextureCoordinate3D)) {
+                            numTexComponents = 3;
+                        }
+                    }
+                    else if (texCoordNode._vf.mode) {
+                        texMode = texCoordNode._vf.mode;
+                    }
+                }
+                else {
+                    hasTexCoord = false;
+                }
+
+                var numColComponents = 3;
+                var colorNode = this._cf.color.node;
+                if (colorNode) {
+                    hasColor = true;
+                    colors = colorNode._vf.color;
+
+                    if (x3dom.isa(colorNode, x3dom.nodeTypes.ColorRGBA)) {
+                        numColComponents = 4;
+                    }
+                }
+                else {
+                    hasColor = false;
+                }
+
+                this._mesh._indices[0] = [];
+                this._mesh._positions[0] = [];
+                this._mesh._normals[0] = [];
+                this._mesh._texCoords[0] = [];
+                this._mesh._colors[0] = [];
+
+                var i, t, cnt, faceCnt, posMax;
+                var p0, p1, p2, n0, n1, n2, t0, t1, t2, c0, c1, c2;
+
+                // if positions array too short add degenerate triangle
+                while (positions.length % 4 > 0) {
+                    positions.push(positions.length-1);
+                }
+                posMax = positions.length;
+
+                /*
+                Note: A separate section setting the _mesh field members
+                and starting with this test:
+                if (!normPerVert || positions.length > x3dom.Utils.maxIndexableCoords)
+                is in the IndexedTriangleSet code. It has been removed
+                here until it's applicability to the QUadSet case can
+                be evaluated
+
+                NOTE: !normPerVert or creaseAngle == 0 means per-face normals
+                      therefore, the original multi-index structure also can't
+                      be retained since this means every face has other vertices
+                      with other attribute properties.
+                      A similar problem arises if we have more than 2^16 coordinates
+                      since WebGL only supports 16-bit indices, why we have to split
+                      the mesh here (which is most easiest achieved by using just the
+                      same code path previously mentioned)
+                */
+                //if (true)
+                {
+					faceCnt = 0;
+					for (i=0; i<indexes.length; i++)
+					{
+						if ((i > 0) && (i % 4 === 3 )) {
+							faceCnt++;
+
+							// then pushe the the 2nd triangle
+							// of the quad on
+							this._mesh._indices[0].push(indexes[i-3]);
+							this._mesh._indices[0].push(indexes[i-1]);
+							this._mesh._indices[0].push(indexes[i]);
+                        }
+						else{
+						    this._mesh._indices[0].push(indexes[i]);
+						}
+
+						if(!normPerVert && hasNormal) {
+							this._mesh._normals[0].push(normals[faceCnt].x);
+							this._mesh._normals[0].push(normals[faceCnt].y);
+							this._mesh._normals[0].push(normals[faceCnt].z);
+						}
+						if(!colPerVert && hasColor) {
+							this._mesh._colors[0].push(colors[faceCnt].r);
+							this._mesh._colors[0].push(colors[faceCnt].g);
+							this._mesh._colors[0].push(colors[faceCnt].b);
+							if (numColComponents === 4) {
+								this._mesh._colors[0].push(colors[faceCnt].a);
+							}
+						}
+					}
+
+                    this._mesh._positions[0] = positions.toGL();
+
+                    if (hasNormal) {
+                        this._mesh._normals[0] = normals.toGL();
+                    }
+                    else {
+                        this._mesh.calcNormals(normPerVert ? Math.PI : 0);
+                    }
+
+                    if (hasTexCoord) {
+                        this._mesh._texCoords[0] = texCoords.toGL();
+                        this._mesh._numTexComponents = numTexComponents;
+                    }
+                    else {
+                        this._mesh.calcTexCoords(texMode);
+                    }
+
+                    if (hasColor && colPerVert) {
+                        this._mesh._colors[0] = colors.toGL();
+                        this._mesh._numColComponents = numColComponents;
+                    }
+                }
+
+                this.invalidateVolume();
+                this._mesh._numFaces = 0;
+                this._mesh._numCoords = 0;
+                for (i=0; i<this._mesh._indices.length; i++) {
+                    this._mesh._numFaces += this._mesh._indices[i].length / 3;
+                    this._mesh._numCoords += this._mesh._positions[i].length / 3;
+                }
+
+                var time1 = new Date().getTime() - time0;
+                //x3dom.debug.logInfo("Mesh load time: " + time1 + " ms");
+            },
+
+            fieldChanged: function(fieldName)
+            {
+                var pnts = this._cf.coord.node._vf.point;
+
+                if ( pnts.length > x3dom.Utils.maxIndexableCoords )  // are there other problematic cases?
+                {
+					// TODO; implement
+                    x3dom.debug.logWarning("IndexedQuadSet: fieldChanged with " +
+                                           "too many coordinates not yet implemented!");
+                    return;
+                }
+
+                if (fieldName == "coord")
+                {
+                    this._mesh._positions[0] = pnts.toGL();
+
+                    // tells the mesh that its bbox requires update
+                    this.invalidateVolume();
+
+                    Array.forEach(this._parentNodes, function (node) {
+                        node._dirty.positions = true;
+                        node.invalidateVolume();
+                    });
+                }
+                else if (fieldName == "color")
+                {
+					pnts = this._cf.color.node._vf.color;
+
+					if (this._vf.colorPerVertex) {
+
+						this._mesh._colors[0] = pnts.toGL();
+
+					} else if (!this._vf.colorPerVertex) {
+
+						var faceCnt = 0;
+						var numColComponents = 3;
+                   		if (x3dom.isa(this._cf.color.node, x3dom.nodeTypes.ColorRGBA)) {
+							numColComponents = 4;
+						}
+
+						this._mesh._colors[0] = [];
+
+						var indexes = this._vf.index;
+						for (i=0; i < indexes.length; ++i)
+						{
+							if ((i > 0) && (i % 3 === 0 )) {
+								faceCnt++;
+							}
+
+							this._mesh._colors[0].push(pnts[faceCnt].r);
+							this._mesh._colors[0].push(pnts[faceCnt].g);
+							this._mesh._colors[0].push(pnts[faceCnt].b);
+							if (numColComponents === 4) {
+								this._mesh._colors[0].push(pnts[faceCnt].a);
+							}
+						}
+					}
+					Array.forEach(this._parentNodes, function (node) {
+						node._dirty.colors = true;
+					});
+                }
+				else if (fieldName == "normal")
+                {
+					pnts = this._cf.normal.node._vf.vector;
+
+					if (this._vf.normalPerVertex) {
+
+						this._mesh._normals[0] = pnts.toGL();
+
+					} else if (!this._vf.normalPerVertex) {
+
+						var indexes = this._vf.index;
+						this._mesh._normals[0] = [];
+
+						var faceCnt = 0;
+						for (i=0; i < indexes.length; ++i)
+						{
+							if ((i > 0) && (i % 3 === 0 )) {
+								faceCnt++;
+							}
+
+							this._mesh._normals[0].push(pnts[faceCnt].x);
+							this._mesh._normals[0].push(pnts[faceCnt].y);
+							this._mesh._normals[0].push(pnts[faceCnt].z);
+						}
+					}
+
+					Array.forEach(this._parentNodes, function (node) {
+						 node._dirty.normals = true;
+					});
+                }
+				else if (fieldName == "texCoord")
+                {
+                    var texCoordNode = this._cf.texCoord.node;
+                    if (x3dom.isa(texCoordNode, x3dom.nodeTypes.MultiTextureCoordinate)) {
+                        if (texCoordNode._cf.texCoord.nodes.length)
+                            texCoordNode = texCoordNode._cf.texCoord.nodes[0];
+                    }
+                    pnts = texCoordNode._vf.point;
+
+                    this._mesh._texCoords[0] = pnts.toGL();
+
+                    Array.forEach(this._parentNodes, function (node) {
+                        node._dirty.texcoords = true;
+                    });
+                }
+            }
+        }
+    )
+);
+
+// ### QuadSet ###
+x3dom.registerNodeType(
+    "QuadSet",
+    "CADGeometry",
+    defineClass(x3dom.nodeTypes.X3DComposedGeometryNode,
+        function (ctx) {
+            x3dom.nodeTypes.QuadSet.superClass.call(this, ctx);
+        },
+        {
+            nodeChanged: function()
+            {
+                /*
+                This code largely taken from the IndexedTriangleSet code
+                */
+                var time0 = new Date().getTime();
+
+                this.handleAttribs();
+
+				var colPerVert = this._vf.colorPerVertex;
+                var normPerVert = this._vf.normalPerVertex;
+
+                var hasNormal = false, hasTexCoord = false, hasColor = false;
+                var positions, normals, texCoords, colors;
+
+                var coordNode = this._cf.coord.node;
+                x3dom.debug.assert(coordNode);
+                positions = coordNode._vf.point;
+
+                var normalNode = this._cf.normal.node;
+                if (normalNode) {
+                    hasNormal = true;
+                    normals = normalNode._vf.vector;
+                }
+                else {
+                    hasNormal = false;
+                }
+
+                var texMode = "", numTexComponents = 2;
+                var texCoordNode = this._cf.texCoord.node;
+                if (x3dom.isa(texCoordNode, x3dom.nodeTypes.MultiTextureCoordinate)) {
+                    if (texCoordNode._cf.texCoord.nodes.length)
+                        texCoordNode = texCoordNode._cf.texCoord.nodes[0];
+                }
+                if (texCoordNode) {
+                    if (texCoordNode._vf.point) {
+                        hasTexCoord = true;
+                        texCoords = texCoordNode._vf.point;
+
+                        if (x3dom.isa(texCoordNode, x3dom.nodeTypes.TextureCoordinate3D)) {
+                            numTexComponents = 3;
+                        }
+                    }
+                    else if (texCoordNode._vf.mode) {
+                        texMode = texCoordNode._vf.mode;
+                    }
+                }
+                else {
+                    hasTexCoord = false;
+                }
+
+                var numColComponents = 3;
+                var colorNode = this._cf.color.node;
+                if (colorNode) {
+                    hasColor = true;
+                    colors = colorNode._vf.color;
+
+                    if (x3dom.isa(colorNode, x3dom.nodeTypes.ColorRGBA)) {
+                        numColComponents = 4;
+                    }
+                }
+                else {
+                    hasColor = false;
+                }
+
+                this._mesh._indices[0] = [];
+                this._mesh._positions[0] = [];
+                this._mesh._normals[0] = [];
+                this._mesh._texCoords[0] = [];
+                this._mesh._colors[0] = [];
+
+                var i, t, cnt, faceCnt, posMax;
+                var p0, p1, p2, n0, n1, n2, t0, t1, t2, c0, c1, c2;
+
+                // if positions array too short add degenerate triangle
+                while (positions.length % 4 > 0) {
+                    positions.push(positions.length-1);
+                }
+                posMax = positions.length;
+
+                /*
+                Note: A separate section setting the _mesh field members
+                and starting with this test:
+                if (!normPerVert || positions.length > x3dom.Utils.maxIndexableCoords)
+                is in the IndexedTriangleSet code. It has been removed
+                here until it's applicability to the QUadSet case can
+                be evaluated
+                */
+                if (1)
+                {
+					faceCnt = 0;
+					for (i=0; i<positions.length; i++)
+					{
+						if ((i > 0) && (i % 4 === 3 )) {
+							faceCnt++;
+
+							// then pushe the the 2nd triangle
+							// of the quad on
+							this._mesh._indices[0].push(i-3);
+							this._mesh._indices[0].push(i-1);
+							this._mesh._indices[0].push(i);
+                        }
+						else{
+						    this._mesh._indices[0].push(i);
+						}
+
+						if(!normPerVert && hasNormal) {
+							this._mesh._normals[0].push(normals[faceCnt].x);
+							this._mesh._normals[0].push(normals[faceCnt].y);
+							this._mesh._normals[0].push(normals[faceCnt].z);
+						}
+						if(!colPerVert && hasColor) {
+							this._mesh._colors[0].push(colors[faceCnt].r);
+							this._mesh._colors[0].push(colors[faceCnt].g);
+							this._mesh._colors[0].push(colors[faceCnt].b);
+							if (numColComponents === 4) {
+								this._mesh._colors[0].push(colors[faceCnt].a);
+							}
+						}
+					}
+
+                    this._mesh._positions[0] = positions.toGL();
+
+                    if (hasNormal) {
+                        this._mesh._normals[0] = normals.toGL();
+                    }
+                    else {
+                        this._mesh.calcNormals(normPerVert ? Math.PI : 0);
+                    }
+
+                    if (hasTexCoord) {
+                        this._mesh._texCoords[0] = texCoords.toGL();
+                        this._mesh._numTexComponents = numTexComponents;
+                    }
+                    else {
+                        this._mesh.calcTexCoords(texMode);
+                    }
+
+                    if (hasColor && colPerVert) {
+                        this._mesh._colors[0] = colors.toGL();
+                        this._mesh._numColComponents = numColComponents;
+                    }
+                }
+
+                this.invalidateVolume();
+                this._mesh._numFaces = 0;
+                this._mesh._numCoords = 0;
+                for (i=0; i<this._mesh._indices.length; i++) {
+                    this._mesh._numFaces += this._mesh._indices[i].length / 3;
+                    this._mesh._numCoords += this._mesh._positions[i].length / 3;
+                }
+
+                var time1 = new Date().getTime() - time0;
+                //x3dom.debug.logInfo("Mesh load time: " + time1 + " ms");
+            },
+
+            fieldChanged: function(fieldName)
+            {
+                var pnts = this._cf.coord.node._vf.point;
+
+                if ( pnts.length > x3dom.Utils.maxIndexableCoords )  // are there other problematic cases?
+                {
+					// TODO; implement
+                    x3dom.debug.logWarning("QuadSet: fieldChanged with " +
+                                           "too many coordinates not yet implemented!");
+                    return;
+                }
+
+                if (fieldName == "coord")
+                {
+                    this._mesh._positions[0] = pnts.toGL();
+
+                    // tells the mesh that its bbox requires update
+                    this.invalidateVolume();
+
+                    Array.forEach(this._parentNodes, function (node) {
+                        node._dirty.positions = true;
+                        node.invalidateVolume();
+                    });
+                }
+                else if (fieldName == "color")
+                {
+					pnts = this._cf.color.node._vf.color;
+
+					if (this._vf.colorPerVertex) {
+
+						this._mesh._colors[0] = pnts.toGL();
+
+					} else if (!this._vf.colorPerVertex) {
+
+						var faceCnt = 0;
+						var numColComponents = 3;
+                   		if (x3dom.isa(this._cf.color.node, x3dom.nodeTypes.ColorRGBA)) {
+							numColComponents = 4;
+						}
+
+						this._mesh._colors[0] = [];
+
+						var indexes = this._vf.index;
+						for (i=0; i < indexes.length; ++i)
+						{
+							if ((i > 0) && (i % 3 === 0 )) {
+								faceCnt++;
+							}
+
+							this._mesh._colors[0].push(pnts[faceCnt].r);
+							this._mesh._colors[0].push(pnts[faceCnt].g);
+							this._mesh._colors[0].push(pnts[faceCnt].b);
+							if (numColComponents === 4) {
+								this._mesh._colors[0].push(pnts[faceCnt].a);
+							}
+						}
+					}
+					Array.forEach(this._parentNodes, function (node) {
+						node._dirty.colors = true;
+					});
+                }
+				else if (fieldName == "normal")
+                {
+					pnts = this._cf.normal.node._vf.vector;
+
+					if (this._vf.normalPerVertex) {
+
+						this._mesh._normals[0] = pnts.toGL();
+
+					} else if (!this._vf.normalPerVertex) {
+
+						var indexes = this._vf.index;
+						this._mesh._normals[0] = [];
+
+						var faceCnt = 0;
+						for (i=0; i < indexes.length; ++i)
+						{
+							if ((i > 0) && (i % 3 === 0 )) {
+								faceCnt++;
+							}
+
+							this._mesh._normals[0].push(pnts[faceCnt].x);
+							this._mesh._normals[0].push(pnts[faceCnt].y);
+							this._mesh._normals[0].push(pnts[faceCnt].z);
+						}
+					}
+
+					Array.forEach(this._parentNodes, function (node) {
+						 node._dirty.normals = true;
+					});
+                }
+				else if (fieldName == "texCoord")
+                {
+                    var texCoordNode = this._cf.texCoord.node;
+                    if (x3dom.isa(texCoordNode, x3dom.nodeTypes.MultiTextureCoordinate)) {
+                        if (texCoordNode._cf.texCoord.nodes.length)
+                            texCoordNode = texCoordNode._cf.texCoord.nodes[0];
+                    }
+                    pnts = texCoordNode._vf.point;
+
+                    this._mesh._texCoords[0] = pnts.toGL();
+
+                    Array.forEach(this._parentNodes, function (node) {
+                        node._dirty.texcoords = true;
+                    });
+                }
+            }
+        }
+    )
+);
+
+
+// ### CADLayer ###
+x3dom.registerNodeType(
+    "CADLayer",
+    "CADGeometry",
+    defineClass(x3dom.nodeTypes.X3DGroupingNode,
+        function (ctx) {
+            x3dom.nodeTypes.CADLayer.superClass.call(this, ctx);
+
+            this.addField_SFString(ctx,'name', "");
+            // to be implemented: the 'visible' field
+            // there already is a 'render' field defined in base class
+            // which basically defines visibility...
+            // NOTE: bbox stuff also already defined in a base class!
+        }
+    )
+);
+
+// ### CADAssembly ###
+x3dom.registerNodeType(
+    "CADAssembly",
+    "CADGeometry",
+    defineClass(x3dom.nodeTypes.X3DGroupingNode,
+        function (ctx) {
+            x3dom.nodeTypes.CADAssembly.superClass.call(this, ctx);
+
+            this.addField_SFString(ctx, 'name', "");
+        }
+    )
+);
+
+// ### CADPart ###
+// According to the CADGeometry specification,
+// the CADPart node has transformation fields identical to
+// those used in the Transform node, therefore just inherit it
+x3dom.registerNodeType(
+    "CADPart",
+    "CADGeometry",
+    defineClass(x3dom.nodeTypes.Transform,
+        function (ctx) {
+            x3dom.nodeTypes.CADPart.superClass.call(this, ctx);
+
+            this.addField_SFString(ctx, 'name', "");
+        }
+    )
+);
+
+// ### CADFace ###
+x3dom.registerNodeType(
+    "CADFace",
+    "CADGeometry",
+    defineClass(x3dom.nodeTypes.X3DGroupingNode,
+        function (ctx) {
+            x3dom.nodeTypes.CADFace.superClass.call(this, ctx);
+
+            this.addField_SFString(ctx, 'name', "");
+            this.addField_SFNode('shape', x3dom.nodeTypes.X3DShapeNode);
+        },
+        {
+            getVolume: function()
+            {
+                var vol = this._graph.volume;
+
+                if (!this.volumeValid() && this._vf.render)
+                {
+                    var child = this._cf.shape.node;
+                    var childVol = (child && child._vf.render === true) ? child.getVolume() : null;
+
+                    if (childVol && childVol.isValid())
+                        vol.extendBounds(childVol.min, childVol.max);
+                }
+
+                return vol;
+            },
+
+            collectDrawableObjects: function (transform, drawableCollection, singlePath, invalidateCache, planeMask)
+            {
+                if (singlePath && (this._parentNodes.length > 1))
+                    singlePath = false;
+
+                if (singlePath && (invalidateCache = invalidateCache || this.cacheInvalid()))
+                    this.invalidateCache();
+
+                if (!this._cf.shape.node ||
+                    (planeMask = drawableCollection.cull(transform, this.graphState(), singlePath, planeMask)) <= 0) {
+                    return;
+                }
+
+                var cnode, childTransform;
+
+                if (singlePath) {
+                    if (!this._graph.globalMatrix) {
+                        this._graph.globalMatrix = this.transformMatrix(transform);
+                    }
+                    childTransform = this._graph.globalMatrix;
+                }
+                else {
+                    childTransform = this.transformMatrix(transform);
+                }
+
+                if ( (cnode = this._cf.shape.node) ) {
+                    cnode.collectDrawableObjects(childTransform, drawableCollection, singlePath, invalidateCache, planeMask);
+                }
+            }
+        }
+    )
+);
+
+/*
+ * X3DOM JavaScript Library
+ * http://www.x3dom.org
+ *
+ * (C)2009 Fraunhofer IGD, Darmstadt, Germany
+ * Dual licensed under the MIT and GPL
+ *
+ * Based on code originally provided by
+ * Philip Taylor: http://philip.html5.org
+ */
+
+
+/* ### Patch ### */
+x3dom.registerNodeType(
+    "Patch",
+    "Geometry3D",
+    defineClass(x3dom.nodeTypes.X3DSpatialGeometryNode,
+        function (ctx) {
+            x3dom.nodeTypes.Patch.superClass.call(this, ctx);
+
+            this.addField_SFVec2f(ctx, 'size', 2, 2);
+            this.addField_SFVec2f(ctx, 'subdivision', 1, 1);
+            this.addField_SFVec3f(ctx, 'center', 0, 0, 0);
+            this.addField_MFString(ctx, 'primType', ['TRIANGLES']);
+
+            var sx = this._vf.size.x, sy = this._vf.size.y;
+            var subx = this._vf.subdivision.x, suby = this._vf.subdivision.y;
+
+            this._indexBufferTriangulationParts = [];
+
+            var x = 0, y = 0;
+            var xstep = sx / subx / 2;
+            var ystep = sy / suby / 2;
+
+            sx /= 2;
+            sy /= 2;
+            var countX = subx * 2 + 1;
+            var countY = suby * 2 + 1;
+
+            /*************************************************************/
+            // VERTEX-INFORMATION
+            /*************************************************************/
+            for (y = 0; y <= suby * 2; y++) {
+                for (x = 0; x <= subx * 2; x++) {
+                    this._mesh._positions[0].push(this._vf.center.x + x * xstep - sx);
+                    this._mesh._positions[0].push(this._vf.center.y + y * ystep - sy);
+                    this._mesh._positions[0].push(this._vf.center.z);
+                    this._mesh._normals[0].push(0);
+                    this._mesh._normals[0].push(0);
+                    this._mesh._normals[0].push(1);
+                    this._mesh._texCoords[0].push(x / (subx * 2));
+                    this._mesh._texCoords[0].push(y / (suby * 2));
+                }
+            }
+
+            /*************************************************************/
+            // regular triangulation
+            for (y = 0; y < countY - 2; y += 2) {
+                for (x = 0; x < countX - 2; x += 2) {
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x) + y * countX);
+
+                    this._mesh._indices[0].push((x) + y * countX);
+                    this._mesh._indices[0].push((x + 2) + y * countX);
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+                }
+            }
+
+            this._indexBufferTriangulationParts.push({
+                offset: 0,
+                count: subx * suby * 6
+            });
+
+            /*************************************************************/
+            // finer bottom triangulation
+            for (y = 0; y < countY - 2; y += 2) {
+                for (x = 0; x < 2; x += 2) {
+                    this._mesh._indices[0].push((x) + y * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x) + (y + 1) * countX);
+
+                    this._mesh._indices[0].push((x) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x) + (y + 2) * countX);
+
+                    this._mesh._indices[0].push((x) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 2) + y * countX);
+
+                    this._mesh._indices[0].push((x + 2) + y * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x) + y * countX);
+                }
+            }
+
+            for (y = 0; y < countY - 2; y += 2) {
+                for (x = 2; x < countX - 2; x += 2) {
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x) + y * countX);
+
+                    this._mesh._indices[0].push((x) + y * countX);
+                    this._mesh._indices[0].push((x + 2) + y * countX);
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+                }
+            }
+
+            this._indexBufferTriangulationParts.push({
+                offset: this._indexBufferTriangulationParts[this._indexBufferTriangulationParts.length - 1].offset +
+                        this._indexBufferTriangulationParts[this._indexBufferTriangulationParts.length - 1].count * 2,
+                count: subx * suby * 6 + suby * 9
+            });
+
+            /*************************************************************/
+            // finer top triangulation
+            for (y = 0; y < countY - 2; y += 2) {
+                for (x = countX - 3; x < countX - 2; x += 2) {
+                    this._mesh._indices[0].push((x) + y * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x) + (y + 2) * countX);
+
+                    this._mesh._indices[0].push((x) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 2) + (y + 1) * countX);
+
+                    this._mesh._indices[0].push((x + 2) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 2) + y * countX);
+
+                    this._mesh._indices[0].push((x + 2) + y * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x) + y * countX);
+                }
+            }
+
+            for (y = 0; y < countY - 2; y += 2) {
+                for (x = 0; x < countX - 4; x += 2) {
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x) + y * countX);
+
+                    this._mesh._indices[0].push((x) + y * countX);
+                    this._mesh._indices[0].push((x + 2) + y * countX);
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+                }
+            }
+
+            this._indexBufferTriangulationParts.push({
+                offset: this._indexBufferTriangulationParts[this._indexBufferTriangulationParts.length - 1].offset +
+                        this._indexBufferTriangulationParts[this._indexBufferTriangulationParts.length - 1].count * 2,
+                count: subx * suby * 6 + suby * 9
+            });
+
+            /*************************************************************/
+            // finer right triangulation
+            for (y = 2; y < countY - 2; y += 2) {
+                for (x = 0; x < countX - 2; x += 2) {
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x) + y * countX);
+
+                    this._mesh._indices[0].push((x) + y * countX);
+                    this._mesh._indices[0].push((x + 2) + y * countX);
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+                }
+            }
+
+            for (y = 0; y < 2; y += 2) {
+                for (x = 0; x < countX - 2; x += 2) {
+
+                    this._mesh._indices[0].push((x) + y * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x) + (y + 2) * countX);
+
+                    this._mesh._indices[0].push((x) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 2) + y * countX);
+
+                    this._mesh._indices[0].push((x + 2) + y * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 1) + y * countX);
+
+                    this._mesh._indices[0].push((x + 1) + y * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x) + y * countX);
+                }
+            }
+
+            this._indexBufferTriangulationParts.push({
+                offset: this._indexBufferTriangulationParts[this._indexBufferTriangulationParts.length - 1].offset +
+                        this._indexBufferTriangulationParts[this._indexBufferTriangulationParts.length - 1].count * 2,
+                count: subx * suby * 6 + subx * 9
+            });
+
+            /*************************************************************/
+            // finer left triangulation
+            for (y = countY - 3; y < countY - 2; y += 2) {
+                for (x = 0; x < countX - 2; x += 2) {
+                    this._mesh._indices[0].push((x) + y * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x) + (y + 2) * countX);
+
+                    this._mesh._indices[0].push((x) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 2) * countX);
+
+                    this._mesh._indices[0].push((x + 1) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 2) + y * countX);
+
+                    this._mesh._indices[0].push((x + 2) + y * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x) + y * countX);
+                }
+            }
+
+            for (y = 0; y < countY - 4; y += 2) {
+                for (x = 0; x < countX - 2; x += 2) {
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x) + y * countX);
+
+                    this._mesh._indices[0].push((x) + y * countX);
+                    this._mesh._indices[0].push((x + 2) + y * countX);
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+                }
+            }
+
+            this._indexBufferTriangulationParts.push({
+                offset: this._indexBufferTriangulationParts[this._indexBufferTriangulationParts.length - 1].offset +
+                        this._indexBufferTriangulationParts[this._indexBufferTriangulationParts.length - 1].count * 2,
+                count: subx * suby * 6 + subx * 9
+            });
+
+            /*************************************************************/
+            // finer topLeft triangulation
+            for (y = countY - 3; y < countY - 2; y += 2) {
+                for (x = countX - 3; x < countX - 2; x += 2) {
+                    this._mesh._indices[0].push((x) + y * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x) + (y + 2) * countX);
+
+                    this._mesh._indices[0].push((x) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 2) * countX);
+
+                    this._mesh._indices[0].push((x + 1) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 2) + (y + 1) * countX);
+
+                    this._mesh._indices[0].push((x + 2) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 2) + y * countX);
+
+                    this._mesh._indices[0].push((x + 2) + y * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x) + y * countX);
+                }
+            }
+
+            for (y = 0; y < countY - 4; y += 2) {
+                for (x = 0; x < countX - 4; x += 2) {
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x) + y * countX);
+
+                    this._mesh._indices[0].push((x) + y * countX);
+                    this._mesh._indices[0].push((x + 2) + y * countX);
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+                }
+            }
+
+            for (y = 0; y < countY - 4; y += 2) {
+                for (x = countX - 3; x < countX - 2; x += 2) {
+                    this._mesh._indices[0].push((x) + y * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x) + (y + 2) * countX);
+
+                    this._mesh._indices[0].push((x) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 2) + (y + 1) * countX);
+
+                    this._mesh._indices[0].push((x + 2) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 2) + y * countX);
+
+                    this._mesh._indices[0].push((x + 2) + y * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x) + y * countX);
+                }
+            }
+
+            for (y = countY - 3; y < countY - 2; y += 2) {
+                for (x = 0; x < countX - 4; x += 2) {
+                    this._mesh._indices[0].push((x) + y * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x) + (y + 2) * countX);
+
+                    this._mesh._indices[0].push((x) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 2) * countX);
+
+                    this._mesh._indices[0].push((x + 1) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 2) + y * countX);
+
+                    this._mesh._indices[0].push((x + 2) + y * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x) + y * countX);
+                }
+            }
+
+            this._indexBufferTriangulationParts.push({
+                offset: this._indexBufferTriangulationParts[this._indexBufferTriangulationParts.length - 1].offset +
+                        this._indexBufferTriangulationParts[this._indexBufferTriangulationParts.length - 1].count * 2,
+                count: subx * suby * 6 + subx * 9 + (suby - 1) * 9 + 3
+            });
+
+            /*************************************************************/
+            // finer bottomLeft triangulation
+            for (y = countY - 3; y < countY - 2; y += 2) {
+                for (x = 0; x < 2; x += 2) {
+                    this._mesh._indices[0].push((x) + y * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x) + (y + 1) * countX);
+
+                    this._mesh._indices[0].push((x) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x) + (y + 2) * countX);
+
+                    this._mesh._indices[0].push((x) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 2) * countX);
+
+                    this._mesh._indices[0].push((x + 1) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 2) + y * countX);
+
+                    this._mesh._indices[0].push((x + 2) + y * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x) + y * countX);
+                }
+            }
+
+            for (y = 0; y < countY - 4; y += 2) {
+                for (x = 2; x < countX - 2; x += 2) {
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x) + y * countX);
+
+                    this._mesh._indices[0].push((x) + y * countX);
+                    this._mesh._indices[0].push((x + 2) + y * countX);
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+                }
+            }
+
+            // finer left
+            for (y = countY - 3; y < countY - 2; y += 2) {
+                for (x = 2; x < countX - 2; x += 2) {
+                    this._mesh._indices[0].push((x) + y * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x) + (y + 2) * countX);
+
+                    this._mesh._indices[0].push((x) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 2) * countX);
+
+                    this._mesh._indices[0].push((x + 1) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 2) + y * countX);
+
+                    this._mesh._indices[0].push((x + 2) + y * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x) + y * countX);
+                }
+            }
+
+            // finer bottom
+            for (y = 0; y < countY - 4; y += 2) {
+                for (x = 0; x < 2; x += 2) {
+                    this._mesh._indices[0].push((x) + y * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x) + (y + 1) * countX);
+
+                    this._mesh._indices[0].push((x) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x) + (y + 2) * countX);
+
+                    this._mesh._indices[0].push((x) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 2) + y * countX);
+
+                    this._mesh._indices[0].push((x + 2) + y * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x) + y * countX);
+                }
+            }
+
+            this._indexBufferTriangulationParts.push({
+                offset: this._indexBufferTriangulationParts[this._indexBufferTriangulationParts.length - 1].offset +
+                        this._indexBufferTriangulationParts[this._indexBufferTriangulationParts.length - 1].count * 2,
+                count: subx * suby * 6 + subx * 9 + (suby - 1) * 9 + 3
+            });
+
+            /*************************************************************/
+            // finer bottomRight triangulation
+            for (y = 0; y < 2; y += 2) {
+                for (x = 0; x < 2; x += 2) {
+                    this._mesh._indices[0].push((x) + y * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x) + (y + 1) * countX);
+
+                    this._mesh._indices[0].push((x) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x) + (y + 2) * countX);
+
+                    this._mesh._indices[0].push((x) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 2) + y * countX);
+
+                    this._mesh._indices[0].push((x + 2) + y * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 1) + y * countX);
+
+                    this._mesh._indices[0].push((x + 1) + y * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x) + y * countX);
+                }
+            }
+
+            for (y = 2; y < countY - 2; y += 2) {
+                for (x = 2; x < countX - 2; x += 2) {
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x) + y * countX);
+
+                    this._mesh._indices[0].push((x) + y * countX);
+                    this._mesh._indices[0].push((x + 2) + y * countX);
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+                }
+            }
+
+            // finer bottom
+            for (y = 2; y < countY - 2; y += 2) {
+                for (x = 0; x < 2; x += 2) {
+                    this._mesh._indices[0].push((x) + y * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x) + (y + 1) * countX);
+
+                    this._mesh._indices[0].push((x) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x) + (y + 2) * countX);
+
+                    this._mesh._indices[0].push((x) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 2) + y * countX);
+
+                    this._mesh._indices[0].push((x + 2) + y * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x) + y * countX);
+                }
+            }
+
+            // finer right
+            for (y = 0; y < 2; y += 2) {
+                for (x = 2; x < countX - 2; x += 2) {
+
+                    this._mesh._indices[0].push((x) + y * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x) + (y + 2) * countX);
+
+                    this._mesh._indices[0].push((x) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 2) + y * countX);
+
+                    this._mesh._indices[0].push((x + 2) + y * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 1) + y * countX);
+
+                    this._mesh._indices[0].push((x + 1) + y * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x) + y * countX);
+                }
+            }
+
+            this._indexBufferTriangulationParts.push({
+                offset: this._indexBufferTriangulationParts[this._indexBufferTriangulationParts.length - 1].offset +
+                        this._indexBufferTriangulationParts[this._indexBufferTriangulationParts.length - 1].count * 2,
+                count: subx * suby * 6 + subx * 9 + (suby - 1) * 9 + 3
+            });
+
+            /*************************************************************/
+            // finer topRight triangulation
+            // finer right
+            for (y = 0; y < 2; y += 2) {
+                for (x = countX - 3; x < countX - 2; x += 2) {
+                    this._mesh._indices[0].push((x) + y * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x) + (y + 2) * countX);
+
+                    this._mesh._indices[0].push((x) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 2) + (y + 1) * countX);
+
+                    this._mesh._indices[0].push((x + 2) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 2) + y * countX);
+
+                    this._mesh._indices[0].push((x + 2) + y * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 1) + y * countX);
+
+                    this._mesh._indices[0].push((x + 1) + y * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x) + y * countX);
+                }
+            }
+
+            for (y = 2; y < countY - 2; y += 2) {
+                for (x = 0; x < countX - 4; x += 2) {
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x) + y * countX);
+
+                    this._mesh._indices[0].push((x) + y * countX);
+                    this._mesh._indices[0].push((x + 2) + y * countX);
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+                }
+            }
+
+            //  finer top
+            for (y = 2; y < countY - 2; y += 2) {
+                for (x = countX - 3; x < countX - 2; x += 2) {
+                    this._mesh._indices[0].push((x) + y * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x) + (y + 2) * countX);
+
+                    this._mesh._indices[0].push((x) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 2) + (y + 1) * countX);
+
+                    this._mesh._indices[0].push((x + 2) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 2) + y * countX);
+
+                    this._mesh._indices[0].push((x + 2) + y * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x) + y * countX);
+                }
+            }
+
+            // finer right
+            for (y = 0; y < 2; y += 2) {
+                for (x = 0; x < countX - 4; x += 2) {
+
+                    this._mesh._indices[0].push((x) + y * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x) + (y + 2) * countX);
+
+                    this._mesh._indices[0].push((x) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+
+                    this._mesh._indices[0].push((x + 2) + (y + 2) * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 2) + y * countX);
+
+                    this._mesh._indices[0].push((x + 2) + y * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x + 1) + y * countX);
+
+                    this._mesh._indices[0].push((x + 1) + y * countX);
+                    this._mesh._indices[0].push((x + 1) + (y + 1) * countX);
+                    this._mesh._indices[0].push((x) + y * countX);
+                }
+            }
+
+            this._indexBufferTriangulationParts.push({
+                offset: this._indexBufferTriangulationParts[this._indexBufferTriangulationParts.length - 1].offset +
+                        this._indexBufferTriangulationParts[this._indexBufferTriangulationParts.length - 1].count * 2,
+                count: subx * suby * 6 + subx * 9 + (suby - 1) * 9 + 3
+            });
+
+            this._mesh._invalidate = true;
+            this._mesh._numFaces = this._mesh._indices[0].length / 3;
+            this._mesh._numCoords = this._mesh._positions[0].length / 3;
+        },
+        {
+            hasIndexOffset: function() {
+                return true;
+            },
+
+            getTriangulationAttributes: function(triangulationIndex){
+                return this._indexBufferTriangulationParts[triangulationIndex];
+            }
+        }
+    )
+);
+
+
+
+// ### BVHRefiner ###
+x3dom.registerNodeType(
+    "BVHRefiner",
+    "Navigation",
+    defineClass(x3dom.nodeTypes.X3DLODNode,
+        function (ctx) {
+            x3dom.nodeTypes.BVHRefiner.superClass.call(this, ctx);
+
+            this.addField_SFFloat(ctx, 'factor', 1.0);
+            this.addField_SFInt32(ctx, 'maxDepth', 3);
+            this.addField_SFInt32(ctx, 'minDepth', 0);
+            this.addField_SFInt32(ctx, 'smoothLoading', 1);
+            this.addField_SFInt32(ctx, 'interactionDepth', this._vf.maxDepth);
+            this.addField_SFVec2f(ctx, 'size', 1, 1);
+            // TODO: delete if octree will be deleted
+            this.addField_SFVec3f(ctx, 'octSize', 1, 1, 1);
+            this.addField_SFVec2f(ctx, 'subdivision', 1, 1);
+            this.addField_SFString(ctx, 'url', "");
+            this.addField_SFString(ctx, 'elevationUrl', "");
+            this.addField_SFString(ctx, 'textureUrl', "");
+            this.addField_SFString(ctx, 'normalUrl', "");
+            this.addField_SFString(ctx, 'mode', "3d");
+            this.addField_SFString(ctx, 'subMode', "wmts");
+            this.addField_SFString(ctx, 'elevationFormat', "png");
+            this.addField_SFString(ctx, 'textureFormat', "png");
+            this.addField_SFString(ctx, 'normalFormat', "png");
+            this.addField_SFFloat(ctx, 'maxElevation', 1.0);
+            this.addField_SFBool(ctx, 'useNormals', true);
+            this.addField_SFBool(ctx, 'lit', true);
+            // count of elements on next level
+            this.addField_SFInt32(ctx, 'bvhCount', 8);
+
+            this.creationSmooth = 0;
+            this.togglePoints = true;
+            this.nodeProducer = new NodeProducer();
+            // calculation of the array-size for storing the quad-pointers
+            var nodeListSize = 0;
+            for (var x = 0; x <= this._vf.maxDepth; x++) {
+                nodeListSize += Math.pow(4, x);
+            }
+            this.nodeList = new Array(nodeListSize);
+
+            if (this._vf.mode === "bin") {
+                // creating the root-node of the quadtree
+                this.rootNode = new QuadtreeNodeBin(ctx, this, 0, 0, 0, null);
+            }
+            else if (this._vf.mode === "3d" || this._vf.mode === "2d") {
+                // 2D-Mesh that will represent the geometry of this node
+                var geometry = new x3dom.nodeTypes.Plane(ctx);
+                // definition the parameters of the geometry
+                geometry._vf.subdivision.setValues(this._vf.subdivision);
+                geometry.fieldChanged("subdivision");
+                geometry._vf.size.setValues(this._vf.size);
+                //geometry._vf.center.setValues(this._vf.center);
+
+                if (this._vf.mode === "2d") {
+                    if (this._vf.subMode === "wmts"){
+                        // creating the root-node of the quadtree
+                        this.rootNode = new QuadtreeNode2dWMTS(ctx, this, 0, 0,
+                                                               x3dom.fields.SFMatrix4f.identity(),
+                                                               0, 0, geometry);
+                    }
+                    else {
+                        // creating the root-node of the quadtree
+                        this.rootNode = new QuadtreeNode2D(ctx, this, 0, 0,
+                                                           x3dom.fields.SFMatrix4f.identity(),
+                                                           0, 0, geometry, "/", 1);
+                    }
+                }
+                else {
+                    if (this._vf.subMode === "32bit"){
+                        this.rootNode = new QuadtreeNode3D_32bit(ctx, this, 0, 0,
+                                                           x3dom.fields.SFMatrix4f.identity(),
+                                                           0, 0, geometry);
+                    }
+                    else {
+                        geometry = new x3dom.nodeTypes.Patch(ctx);
+                        this.rootNode = new QuadtreeNode3D(ctx, this, 0, 0,
+                                                           x3dom.fields.SFMatrix4f.identity(),
+                                                           0, 0, geometry);
+                    }
+                }
+            }
+            else if (this._vf.mode === "bvh"){
+                // creating the root-node of the quadtree
+                this.rootNode = new BVHNode(ctx, this, 0, "/", 1, this._vf.bvhCount);
+            }
+            else {
+                x3dom.debug.logError("Error attribute mode. Value: '" + this._vf.mode +
+                                     "' isn't conform. Please use type 'bin', '2d' or '3d'");
+            }
+        },
+        {
+            visitChildren: function(transform, drawableCollection, singlePath, invalidateCache, planeMask) {
+                var x3dElement = this._nameSpace.doc._x3dElem;
+
+                if (this._vf.mode === "oct") {
+                    if (x3dElement.runtime.isReady && this.togglePoints){
+                        x3dElement.runtime.togglePoints();
+                        this.togglePoints = false;
+                        this.view = drawableCollection.viewarea;
+                    }
+                    this.creationSmooth++;
+                    singlePath = false;         // TODO (specify if unique node path or multi-parent)
+                    invalidateCache = true;     // TODO (reuse world transform and volume cache)
+                    this.rootNode.collectDrawables(transform, drawableCollection, singlePath, invalidateCache, planeMask);
+
+                    if (!this.view.isMoving() && ((this.creationSmooth % this._vf.smoothLoading) === 0)) {
+                        this.nodeProducer.CreateNewNode();
+                    }
+                }
+                else {
+                    if (x3dElement.runtime.isReady && this.togglePoints){
+                        this.view = x3dElement.runtime.canvas.doc._viewarea;
+                        this.togglePoints = false;
+                    }
+                    this.createChildren = 0;
+                    this.creationSmooth++;
+                    singlePath = false;         // TODO (specify if unique node path or multi-parent)
+                    invalidateCache = true;     // TODO (reuse world transform and volume cache)
+                    this.rootNode.collectDrawables(transform, drawableCollection, singlePath, invalidateCache, planeMask);
+                    if (!this.view.isMoving() && ((this.creationSmooth % this._vf.smoothLoading) === 0)) {
+                        this.nodeProducer.CreateNewNode();
+                    }
+                }
+            },
+
+            getVolume: function()
+            {
+                var vol = this._graph.volume;
+
+                if (!this.volumeValid() && this._vf.render)
+                {
+                    var childVol = this.rootNode.getVolume();
+                    if (childVol && childVol.isValid())
+                        vol.extendBounds(childVol.min, childVol.max);
+                }
+
+                return vol;
+            }
+        }
+    )
+);
+
+
+
+/*
+ * All bvh-nodes must login at this element if they want to
+ * create their children on next frame. This node decides what node
+ * has the highest priority and creates its four children on the next
+ * frame. On the next frame the same course will happen till all children
+ * are created.
+ * @returns {NodeProducer}
+ */
+function NodeProducer()
+{
+    // Node thats children should be created after current frame is rendered
+    var nextNode        = null;
+    // Distance of the node that should be created after current frame
+    var nearestDistance = 1000000;
+    // Depth of the node that should be created after current frame
+    var smallestDepth   = 1000000;
+
+
+
+    /*
+     * Decides if the given node has a smaller or the same depth as the
+     * current "nextNode", and if this is true if the distance to camera
+     * is less. In this case it will be new "nextNode"
+     * @param {Node of BVHRefiner} node node that will create children
+     * @param {type} distance distance of the node to camera
+     * @returns {null}
+     */
+    this.AddNewNode = function(node, distance){
+        if (node.Level() < smallestDepth) {
+            smallestDepth = node.Level();
+            nextNode = node;
+        }
+        if (node.Level() === smallestDepth){
+            if (distance < nearestDistance){
+                distance = nearestDistance;
+                nextNode = node;
+            }
+        }
+    };
+
+
+
+    /*
+     * Creates the children of the node with highest priority in the last frame
+     * @returns {null}
+     */
+    this.CreateNewNode = function(){
+        if (nextNode !== null) {
+            nextNode.CreateChildren();
+        }
+        nextNode = null;
+        smallestDepth = 1000;
+    };
+}
+
+
+
+/*******************************************************************************
+ *******************************************************************************
+ **************************** QuadtreeNode2dWMTS *******************************
+ *******************************************************************************
+ *******************************************************************************
+ *
+ * Defines one 2D node (plane) of a quadtree that represents a part
+ * (nxn vertices) of the whole mesh.
+ * @param {object} ctx context
+ * @param {x3dom.nodeTypes.BVHRefiner} bvhRefiner root bvhRefiner node
+ * @param {number} level level of the node within the quadtree
+ * @param {number} nodeNumber id of the node within the level
+ * @param {x3dom.fields.SFMatrix4f} nodeTransformation transformation matrix
+ *                                  that defines scale and position
+ * @param {number} columnNr column number in the wmts matrix within the level
+ * @param {number} rowNr row number in the wmts matrix within the level
+ * @param {x3dom.nodeTypes.Plane} geometry plane
+ * @returns {QuadtreeNode2dWMTS}
+ */
+function QuadtreeNode2dWMTS(ctx, bvhRefiner, level, nodeNumber, nodeTransformation,
+                            columnNr, rowNr, geometry)
+{
+    // array with the maximal four child nodes
+    var children = [];
+    // drawable component of this node
+    var shape = new x3dom.nodeTypes.Shape();
+    // position of the node in world space
+    var position = null;
+    // true if this component is available and renderable
+    var readyState = false;
+    // checks if children are ready
+    var childrenReadyState = false;
+    // url of the data source
+    var url = bvhRefiner._vf.textureUrl + "/" + level + "/" + columnNr +
+              "/" + rowNr + "." + (bvhRefiner._vf.textureFormat).toLowerCase();
+    // defines the resizing factor
+    var resizeFac = (bvhRefiner._vf.size.x + bvhRefiner._vf.size.y) / 2.0;
+    // object that stores all information to do a frustum culling
+    var cullObject = {};
+
+
+
+    /*
+     * Initializes all nodeTypes that are needed to create the drawable
+     * component for this node
+     * @returns {null}
+     */
+    function initialize() {
+
+        // appearance of the drawable component of this node
+        var appearance = new x3dom.nodeTypes.Appearance(ctx);
+        // texture that should represent the surface-data of this node
+        var texture = new x3dom.nodeTypes.ImageTexture(ctx);
+
+        // definition of the nameSpace of this shape
+        shape._nameSpace = bvhRefiner._nameSpace;
+
+        // create height-data
+        var texProp = new x3dom.nodeTypes.TextureProperties(ctx);
+        texProp._vf.boundaryModeS = "CLAMP_TO_EDGE";
+        texProp._vf.boundaryModeT = "CLAMP_TO_EDGE";
+        texProp._vf.boundaryModeR = "CLAMP_TO_EDGE";
+        texProp._vf.minificationFilter = "LINEAR";
+        texProp._vf.magnificationFilter = "LINEAR";
+        texture.addChild(texProp, "textureProperties");
+        texture.nodeChanged();
+        // definition of texture
+        texture._nameSpace = bvhRefiner._nameSpace;
+        texture._vf.url[0] = url;
+
+        // calculate the average position of the node
+        position = nodeTransformation.e3();
+
+        // add textures to the appearence of this node
+        appearance.addChild(texture);
+        texture.nodeChanged();
+
+        // create shape with geometry and appearance data
+        shape.addChild(appearance);
+        appearance.nodeChanged();
+        shape.addChild(geometry);
+        geometry.nodeChanged();
+
+        // add shape to bvhRefiner object
+        bvhRefiner.addChild(shape);
+        shape.nodeChanged();
+
+        // definition the static properties of cullObject
+        cullObject.boundedNode = shape;
+        cullObject.volume = shape.getVolume();
+    }
+
+
+
+    /*
+     * Creates the four children
+     * @returns {null}
+     */
+    this.CreateChildren = function () {
+        create();
+    };
+
+
+
+    /*
+     * Creates the four children
+     * @returns {null}
+     */
+    function create() {
+
+        // calculation of children number nodeNumber within their level
+        var deltaR = Math.sqrt(Math.pow(4, level));
+        var deltaR1 = Math.sqrt(Math.pow(4, level + 1));
+        var lt = Math.floor(nodeNumber / deltaR) * 4 * deltaR +
+                           (nodeNumber % deltaR) * 2;
+        var rt = lt + 1;
+        var lb = lt + deltaR1;
+        var rb = lb + 1;
+
+        // calculation of the scaling factor
+        var s = (bvhRefiner._vf.size).multiply(0.25);
+
+        // creation of all children
+        children.push(new QuadtreeNode2dWMTS(ctx, bvhRefiner, (level + 1), lt,
+            nodeTransformation.mult(x3dom.fields.SFMatrix4f.translation(
+                    new x3dom.fields.SFVec3f(-s.x, s.y, 0.0))).mult(x3dom.fields.SFMatrix4f.scale(
+                    new x3dom.fields.SFVec3f(0.5, 0.5, 1.0))), (columnNr * 2), (rowNr * 2), geometry));
+        children.push(new QuadtreeNode2dWMTS(ctx, bvhRefiner, (level + 1), rt,
+            nodeTransformation.mult(x3dom.fields.SFMatrix4f.translation(
+                    new x3dom.fields.SFVec3f(s.x, s.y, 0.0))).mult(x3dom.fields.SFMatrix4f.scale(
+                    new x3dom.fields.SFVec3f(0.5, 0.5, 1.0))), (columnNr * 2 + 1), (rowNr * 2), geometry));
+        children.push(new QuadtreeNode2dWMTS(ctx, bvhRefiner, (level + 1), lb,
+            nodeTransformation.mult(x3dom.fields.SFMatrix4f.translation(
+                    new x3dom.fields.SFVec3f(-s.x, -s.y, 0.0))).mult(x3dom.fields.SFMatrix4f.scale(
+                    new x3dom.fields.SFVec3f(0.5, 0.5, 1.0))), (columnNr * 2), (rowNr * 2 + 1), geometry));
+        children.push(new QuadtreeNode2dWMTS(ctx, bvhRefiner, (level + 1), rb,
+            nodeTransformation.mult(x3dom.fields.SFMatrix4f.translation(
+                    new x3dom.fields.SFVec3f(s.x, -s.y, 0.0))).mult(x3dom.fields.SFMatrix4f.scale(
+                    new x3dom.fields.SFVec3f(0.5, 0.5, 1.0))), (columnNr * 2 + 1), (rowNr * 2 + 1), geometry));
+    }
+
+
+
+    /*
+     * Returns the shape of this node
+     * @returns {x3dom.nodeTypes.Shape}
+     */
+    this.Shape = function () {
+        return shape;
+    };
+
+
+
+    /*
+     * Runs only local ready() method. This is needed from parent to ask if
+     * all children are ready to render or not
+     * @returns {Boolean} true if ready to render, else false
+     */
+    this.Ready = function(){
+        if (shape._webgl !== undefined && shape._webgl.texture !== undefined) {
+                return ready();
+        }
+
+        return false;
+    };
+
+
+
+    /*
+     * Iterates through all textures of this node and sets readState parameter
+     * to true if all textures have been loaded to gpu yet, false if not.
+     * @returns {Boolean} true if ready to render, else false
+     */
+    function ready() {
+        readyState = true;
+        for (var i = 0; i < shape._webgl.texture.length; i++){
+            if (!shape._webgl.texture[i].texture.ready){
+                readyState = false;
+            }
+
+
+        }
+
+        return readyState;
+    }
+
+
+
+    /*
+     * Updates the loading state of children and initializes this node
+     * if this wasn't done before
+     * @param {x3dom.DrawableCollection} drawableCollection
+     * @param {x3dom.fields.SFMatrix4f} transform outer transformation matrix
+     * @returns {null}
+     */
+    function updateLoadingState(drawableCollection, transform){
+
+        childrenReadyState = true;
+        for (var i = 0; i < children.length; i++){
+            if (!children[i].Ready()) {
+                childrenReadyState = false;
+            }
+        }
+
+        if (children.length < 4){
+            childrenReadyState = false;
+        }
+        else if (childrenReadyState) {
+            for (var i = 0; i < children.length; i++){
+                children[i].Shape()._vf.render = true;
+            }
+        }
+
+        if (shape._webgl === undefined || shape._webgl.texture === undefined) {
+            drawableCollection.context.setupShape(drawableCollection.gl,
+                                                 {shape:shape,
+                                                  transform:transform},
+                                                  drawableCollection.viewarea);
+        }
+        else {
+            ready();
+        }
+    }
+
+
+
+    /*
+     * Decides to create new children and if the node shoud be drawn or not
+     * @param {x3dom.fields.SFMatrix4f} transform outer transformation matrix
+     * @param {x3dom.DrawableCollection} drawableCollection
+     * @param {bool} singlePath
+     * @param {bool} invalidateCache
+     * @param {number} planeMask
+     * @returns {null}
+     */
+    this.collectDrawables = function (transform, drawableCollection,
+                                      singlePath, invalidateCache, planeMask) {
+
+        // definition the actual transformation of the node
+        cullObject.localMatrix = nodeTransformation;
+        // calculation of new plane mask
+        planeMask = drawableCollection.cull(nodeTransformation, cullObject, singlePath, planeMask);
+
+        // Checks the actual loading state of itself and children if something wasn't loaded in last frame
+        if (!readyState || !childrenReadyState)
+            updateLoadingState(drawableCollection, nodeTransformation);
+
+        if (readyState && planeMask > 0) {
+            var mat_view = drawableCollection.viewMatrix;
+            var vPos = mat_view.multMatrixPnt(nodeTransformation.multMatrixPnt(position));
+            var distanceToCamera = Math.sqrt(Math.pow(vPos.x, 2) + Math.pow(vPos.y, 2) + Math.pow(vPos.z, 2));
+
+            if ((distanceToCamera < Math.pow((bvhRefiner._vf.maxDepth - level), 2) * resizeFac / bvhRefiner._vf.factor) || level < bvhRefiner._vf.minDepth) {
+                if (bvhRefiner.view.isMoving() && children.length === 0 ||
+                    bvhRefiner.view.isMoving() && level >= bvhRefiner._vf.interactionDepth) {
+                    shape.collectDrawableObjects(nodeTransformation, drawableCollection, singlePath, invalidateCache, planeMask);
+                }
+                else {
+                    if (children.length === 0) {
+                        bvhRefiner.nodeProducer.AddNewNode(that, distanceToCamera);
+                        shape.collectDrawableObjects(nodeTransformation, drawableCollection, singlePath, invalidateCache, planeMask);
+                    }
+                    else {
+                        if (childrenReadyState) {
+                            for (var i = 0; i < children.length; i++) {
+                                children[i].collectDrawables(nodeTransformation, drawableCollection, singlePath, invalidateCache, planeMask);
+                            }
+                        }
+                        else {
+                            shape.collectDrawableObjects(nodeTransformation, drawableCollection, singlePath, invalidateCache, planeMask);
+                            for (var i = 0; i < children.length; i++) {
+                                children[i].collectDrawables(nodeTransformation, drawableCollection, singlePath, invalidateCache, planeMask);
+                                children[i].Shape()._vf.render = false;
+                            }
+                        }
+                    }
+                }
+            }
+            else {
+                shape.collectDrawableObjects(nodeTransformation, drawableCollection, singlePath, invalidateCache, planeMask);
+            }
+        }
+    };
+
+
+
+    /*
+     * Returns the volume of this node
+     * @returns {x3dom.fields.BoxVolume}
+     */
+    this.getVolume = function() {
+        return shape.getVolume();
+    };
+
+
+    /*
+     * Returns the level of this node
+     * @returns {number}
+     */
+    this.Level = function () {
+        return level;
+    };
+
+
+    // reference to get access to public methods within this node
+    var that = this;
+    // initializes this node directly after creating
+    initialize();
+}
+
+
+
+/*******************************************************************************
+ *******************************************************************************
+ **************************** QuadtreeNode2D ***********************************
+ *******************************************************************************
+ *******************************************************************************
+ *
+ * Defines one 2D node (plane) of a quadtree that represents a part
+ * (nxn vertices) of the whole mesh.
+ * @param {object} ctx context
+ * @param {x3dom.nodeTypes.BVHRefiner} bvhRefiner root bvhRefiner node
+ * @param {number} level level of the node within the quadtree
+ * @param {number} nodeNumber id of the node within the level
+ * @param {x3dom.fields.SFMatrix4f} nodeTransformation transformation matrix
+ *                                  that defines scale and position
+ * @param {number} columnNr column number in the wmts matrix within the level
+ * @param {number} rowNr row number in the wmts matrix within the level
+ * @param {x3dom.nodeTypes.Plane} geometry plane
+ * @param {string} path path to the nodes data
+ * @param {type} imgNumber number of the image within the path
+ * @returns {QuadtreeNode2D}
+ */
+function QuadtreeNode2D(ctx, bvhRefiner, level, nodeNumber, nodeTransformation,
+                        columnNr, rowNr, geometry, path, imgNumber)
+{
+
+     // array with the maximal four child nodes
+    var children = [];
+    // drawable component of this node
+    var shape = new x3dom.nodeTypes.Shape();
+    // position of the node in world space
+    var position = null;
+    // true if this component is available and renderable
+    var readyState = false;
+    // checks if children are ready
+    var childrenReadyState = false;
+    // true if components are available and renderable
+    var exists = true;
+    // url of the data source
+    var url = bvhRefiner._vf.textureUrl + path + imgNumber + "." + bvhRefiner._vf.textureFormat;
+    // defines the resizing factor
+    var resizeFac = (bvhRefiner._vf.size.x + bvhRefiner._vf.size.y) / 2.0;
+    // object that stores all information to do a frustum culling
+    var cullObject = {};
+
+
+
+    /*
+     * Initializes all nodeTypes that are needed to create the drawable
+     * component for this node
+     * @returns {null}
+     */
+    function initialize() {
+
+        // appearance of the drawable component of this node
+        var appearance = new x3dom.nodeTypes.Appearance(ctx);
+        // texture that should represent the surface-data of this node
+        var texture = new x3dom.nodeTypes.ImageTexture(ctx);
+
+        // definition of the nameSpace of this shape
+        shape._nameSpace = bvhRefiner._nameSpace;
+
+        // create height-data
+        var texProp = new x3dom.nodeTypes.TextureProperties(ctx);
+        texProp._vf.boundaryModeS = "CLAMP_TO_EDGE";
+        texProp._vf.boundaryModeT = "CLAMP_TO_EDGE";
+        texProp._vf.boundaryModeR = "CLAMP_TO_EDGE";
+        texProp._vf.minificationFilter = "LINEAR";
+        texProp._vf.magnificationFilter = "LINEAR";
+        texture.addChild(texProp, "textureProperties");
+        texture.nodeChanged();
+        // definition of texture
+        texture._nameSpace = bvhRefiner._nameSpace;
+        texture._vf.url[0] = url;
+
+        // calculate the average position of the node
+        position = nodeTransformation.e3();
+
+        // add textures to the appearence of this node
+        appearance.addChild(texture);
+        texture.nodeChanged();
+
+        // create shape with geometry and appearance data
+        shape.addChild(appearance);
+        appearance.nodeChanged();
+        shape.addChild(geometry);
+        geometry.nodeChanged();
+
+        // add shape to bvhRefiner object
+        bvhRefiner.addChild(shape);
+        shape.nodeChanged();
+
+        // definition the static properties of cullObject
+        cullObject.boundedNode = shape;
+        cullObject.volume = shape.getVolume();
+    }
+
+
+
+    /*
+     * Creates the four children
+     * @returns {null}
+     */
+    this.CreateChildren = function () {
+        create();
+    };
+
+
+
+    /*
+     * Creates the four children
+     * @returns {null}
+     */
+    function create() {
+
+        // calculation of children number nodeNumber within their level
+        var deltaR = Math.sqrt(Math.pow(4, level));
+        var deltaR1 = Math.sqrt(Math.pow(4, level + 1));
+        var lt = Math.floor(nodeNumber / deltaR) * 4 * deltaR +
+                           (nodeNumber % deltaR) * 2;
+        var rt = lt + 1;
+        var lb = lt + deltaR1;
+        var rb = lb + 1;
+
+        // calculation of the scaling factor
+        var s = (bvhRefiner._vf.size).multiply(0.25);
+
+        // creation of all children
+        children.push(new QuadtreeNode2D(ctx, bvhRefiner, (level + 1), lt,
+            nodeTransformation.mult(x3dom.fields.SFMatrix4f.translation(
+                    new x3dom.fields.SFVec3f(-s.x, s.y, 0.0))).mult(x3dom.fields.SFMatrix4f.scale(
+                    new x3dom.fields.SFVec3f(0.5, 0.5, 1.0))), (columnNr * 2), (rowNr * 2), geometry, path + imgNumber + "/", 1));
+        children.push(new QuadtreeNode2D(ctx, bvhRefiner, (level + 1), rt,
+            nodeTransformation.mult(x3dom.fields.SFMatrix4f.translation(
+                    new x3dom.fields.SFVec3f(s.x, s.y, 0.0))).mult(x3dom.fields.SFMatrix4f.scale(
+                    new x3dom.fields.SFVec3f(0.5, 0.5, 1.0))), (columnNr * 2 + 1), (rowNr * 2), geometry, path + imgNumber + "/", 3));
+        children.push(new QuadtreeNode2D(ctx, bvhRefiner, (level + 1), lb,
+            nodeTransformation.mult(x3dom.fields.SFMatrix4f.translation(
+                    new x3dom.fields.SFVec3f(-s.x, -s.y, 0.0))).mult(x3dom.fields.SFMatrix4f.scale(
+                    new x3dom.fields.SFVec3f(0.5, 0.5, 1.0))), (columnNr * 2), (rowNr * 2 + 1), geometry, path + imgNumber + "/", 2));
+        children.push(new QuadtreeNode2D(ctx, bvhRefiner, (level + 1), rb,
+            nodeTransformation.mult(x3dom.fields.SFMatrix4f.translation(
+                    new x3dom.fields.SFVec3f(s.x, -s.y, 0.0))).mult(x3dom.fields.SFMatrix4f.scale(
+                    new x3dom.fields.SFVec3f(0.5, 0.5, 1.0))), (columnNr * 2 + 1), (rowNr * 2 + 1), geometry, path + imgNumber + "/", 4));
+    }
+
+
+
+    /*
+     * Returns the shape of this node
+     * @returns {x3dom.nodeTypes.Shape}
+     */
+    this.Shape = function () {
+        return shape;
+    };
+
+
+
+    /*
+     * Runs only local ready() method. This is needed from parent to ask if
+     * all children are ready to render or not
+     * @returns {Boolean} true if ready to render, else false
+     */
+    this.Ready = function(){
+        if (shape._webgl !== undefined && shape._webgl.texture !== undefined) {
+                return ready();
+        }
+
+        return false;
+    };
+
+
+
+    /*
+     * Iterates through all textures of this node and sets readState parameter
+     * to true if all textures have been loaded to gpu yet, false if not.
+     * @returns {Boolean} true if ready to render, else false
+     */
+    function ready() {
+        readyState = true;
+        for (var i = 0; i < shape._webgl.texture.length; i++){
+            if (!shape._webgl.texture[i].texture.ready){
+                readyState = false;
+            }
+
+
+        }
+
+        return readyState;
+    }
+
+
+
+    /*
+     * Updates the loading state of children and initializes this node
+     * if this wasn't done before
+     * @param {x3dom.DrawableCollection} drawableCollection
+     * @param {x3dom.fields.SFMatrix4f} transform outer transformation matrix
+     * @returns {null}
+     */
+    function updateLoadingState(drawableCollection, transform){
+
+        childrenReadyState = true;
+        for (var i = 0; i < children.length; i++){
+            if (!children[i].Ready()) {
+                childrenReadyState = false;
+            }
+        }
+
+        if (children.length < 4){
+            childrenReadyState = false;
+        }
+        else if (childrenReadyState) {
+            for (var i = 0; i < children.length; i++){
+                children[i].Shape()._vf.render = true;
+            }
+        }
+
+
+        if (shape._webgl === undefined || shape._webgl.texture === undefined) {
+            drawableCollection.context.setupShape(drawableCollection.gl,
+                                                 {shape:shape, transform:transform},
+                                                  drawableCollection.viewarea);
+        }
+        else {
+            ready();
+        }
+
+    }
+
+
+
+    /*
+     * Decides to create new children and if the node shoud be drawn or not
+     * @param {x3dom.fields.SFMatrix4f} transform outer transformation matrix
+     * @param {x3dom.DrawableCollection} drawableCollection
+     * @param {bool} singlePath
+     * @param {bool} invalidateCache
+     * @param {number} planeMask
+     * @returns {null}
+     */
+    this.collectDrawables = function (transform, drawableCollection,
+                                      singlePath, invalidateCache, planeMask) {
+
+        // definition the actual transformation of the node
+        cullObject.localMatrix = nodeTransformation;
+        // Checks the actual loading state of itself and children if something wasn't loaded in last frame
+        if (!readyState || !childrenReadyState) { updateLoadingState(drawableCollection, nodeTransformation); }
+
+        if (readyState && (planeMask = drawableCollection.cull(nodeTransformation, cullObject, singlePath, planeMask)) > 0) {
+            var mat_view = drawableCollection.viewMatrix;
+            var vPos = mat_view.multMatrixPnt(nodeTransformation.multMatrixPnt(position));
+            var distanceToCamera = Math.sqrt(Math.pow(vPos.x, 2) + Math.pow(vPos.y, 2) + Math.pow(vPos.z, 2));
+
+            if ((distanceToCamera < Math.pow((bvhRefiner._vf.maxDepth - level), 2) * resizeFac / bvhRefiner._vf.factor) || level < bvhRefiner._vf.minDepth) {
+                if (bvhRefiner.view.isMoving() && children.length === 0 ||
+                    bvhRefiner.view.isMoving() && level >= bvhRefiner._vf.interactionDepth) {
+                    shape.collectDrawableObjects(nodeTransformation, drawableCollection, singlePath, invalidateCache, planeMask);
+                }
+                else {
+                    if (children.length === 0) {
+                        bvhRefiner.nodeProducer.AddNewNode(that, distanceToCamera);
+                        shape.collectDrawableObjects(nodeTransformation, drawableCollection, singlePath, invalidateCache, planeMask);
+                    }
+                    else {
+                        if (childrenReadyState) {
+                            for (var i = 0; i < children.length; i++) {
+                                children[i].collectDrawables(nodeTransformation, drawableCollection, singlePath, invalidateCache, planeMask);
+                            }
+                        }
+                        else {
+                            shape.collectDrawableObjects(nodeTransformation, drawableCollection, singlePath, invalidateCache, planeMask);
+                            for (var i = 0; i < children.length; i++) {
+                                children[i].collectDrawables(nodeTransformation, drawableCollection, singlePath, invalidateCache, planeMask);
+                                children[i].Shape()._vf.render = false;
+                            }
+                        }
+                    }
+                }
+            }
+            else {
+                shape.collectDrawableObjects(nodeTransformation, drawableCollection, singlePath, invalidateCache, planeMask);
+            }
+        }
+    };
+
+
+
+    /*
+     * Returns the volume of this node
+     * @returns {x3dom.fields.BoxVolume}
+     */
+    this.getVolume = function() {
+        return shape.getVolume();
+    };
+
+
+    /*
+     * Returns the level of this node
+     * @returns {number}
+     */
+    this.Level = function () {
+        return level;
+    };
+
+
+
+    // reference to get access to public methods within this node
+    var that = this;
+    // initializes this node directly after creating
+    initialize();
+}
+
+
+
+/*******************************************************************************
+ *******************************************************************************
+ **************************** QuadtreeNode3D ***********************************
+ *******************************************************************************
+ *******************************************************************************
+ *
+ * Defines one 3D node (plane with displacement) of a quadtree that represents
+ * a part (nxn vertices) of the whole mesh.
+ * @param {object} ctx context
+ * @param {x3dom.nodeTypes.BVHRefiner} bvhRefiner root bvhRefiner node
+ * @param {number} level level of the node within the quadtree
+ * @param {number} nodeNumber id of the node within the level
+ * @param {x3dom.fields.SFMatrix4f} nodeTransformation transformation matrix
+ *                                  that defines scale and position
+ * @param {number} columnNr column number in the wmts matrix within the level
+ * @param {number} rowNr row number in the wmts matrix within the level
+ * @param {x3dom.nodeTypes.Plane} geometry plane
+ * @returns {QuadtreeNode3D}
+ */
+function QuadtreeNode3D(ctx, bvhRefiner, level, nodeNumber, nodeTransformation,
+                        columnNr, rowNr, geometry)
+{
+    // array with the maximal four child nodes
+    var children = [];
+    // neighborhood of the node (0=left, 1=right, 2=bottom, 3=top)
+    var neighbors = [];
+    // drawable component of this node
+    var shape = new x3dom.nodeTypes.Shape();
+    // position of the node in world space
+    var position = null;
+    // address of the image for the bvhRefiner surface
+    var imageAddressColor = bvhRefiner._vf.textureUrl + "/" + level + "/" +
+                            columnNr + "/" + rowNr + "." +
+                            (bvhRefiner._vf.textureFormat).toLowerCase();
+    // address of the image for the bvhRefiner height-data
+    var imageAddressHeight = bvhRefiner._vf.elevationUrl + "/" + level + "/" +
+                             columnNr + "/" + rowNr + "." +
+                             (bvhRefiner._vf.elevationFormat).toLowerCase();
+    if (bvhRefiner._vf.normalUrl !== "")
+        // address of the image for the bvhRefiner normal-data
+        var imageAddressNormal = bvhRefiner._vf.normalUrl + "/" + level + "/" +
+                                 columnNr + "/" + rowNr + "." +
+                                 (bvhRefiner._vf.normalFormat).toLowerCase();
+    // true if this component is available and renderable
+    var readyState = false;
+    // checks if children are ready
+    var childrenReadyState = false;
+    // defines the resizing factor
+    var resizeFac = (bvhRefiner._vf.size.x + bvhRefiner._vf.size.y) / 2.0;
+    // object that stores all information to do a frustum culling
+    var cullObject = {};
+    // last indice number of mesh
+    var lastIndice = 0;
+    // triangulation attributes --> offset and count of triangulation buffer
+    var triangulationAttributes = null;
+
+
+
+    /*
+     * Initializes all nodeTypes that are needed to create the drawable
+     * component for this node
+     */
+    function initialize() {
+
+        // appearance of the drawable component of this node
+        var appearance = new x3dom.nodeTypes.Appearance(ctx);
+        // multiTexture to get heightmap and colormap to gpu
+        var textures = new x3dom.nodeTypes.MultiTexture(ctx);
+        // texture that should represent the surface-data of this node
+        var colorTexture = new x3dom.nodeTypes.ImageTexture(ctx);
+        // texture that should represent the height-data of this node
+        var heightTexture = new x3dom.nodeTypes.ImageTexture(ctx);
+        // texture that should represent the normal-data of this node
+        var normalTexture = new x3dom.nodeTypes.ImageTexture(ctx);
+        // creating the special shader for these nodes
+        var composedShader = new x3dom.nodeTypes.ComposedShader(ctx);
+
+        // definition of the nameSpace of this shape
+        shape._nameSpace = bvhRefiner._nameSpace;
+
+        // calculate the average position of the node
+        position = nodeTransformation.e3();
+        position.z = bvhRefiner._vf.maxElevation / 2;
+
+        // creating the special vertex-shader for bvhRefiner-nodes
+        var vertexShader = new x3dom.nodeTypes.ShaderPart(ctx);
+        vertexShader._vf.type = 'vertex';
+        vertexShader._vf.url[0] = createVertexShader();
+
+        // creating the special fragment-shader for bvhRefiner-nodes
+        var fragmentShader = new x3dom.nodeTypes.ShaderPart(ctx);
+        fragmentShader._vf.type = 'fragment';
+        fragmentShader._vf.url[0] = createFragmentShader();
+
+        // create complete-shader with vertex- and fragment-shader
+        composedShader.addChild(vertexShader, 'parts');
+        composedShader.addChild(fragmentShader, 'parts');
+
+        var colorTexProp = new x3dom.nodeTypes.TextureProperties(ctx);
+        colorTexProp._vf.boundaryModeS = "CLAMP_TO_EDGE";
+        colorTexProp._vf.boundaryModeT = "CLAMP_TO_EDGE";
+        colorTexProp._vf.boundaryModeR = "CLAMP_TO_EDGE";
+        colorTexProp._vf.minificationFilter = "LINEAR";
+        colorTexProp._vf.magnificationFilter = "LINEAR";
+        colorTexture.addChild(colorTexProp, "textureProperties");
+        colorTexture.nodeChanged();
+        // create texture-data of this node with url's of the texture data
+        colorTexture._nameSpace = bvhRefiner._nameSpace;
+        colorTexture._vf.url[0] = imageAddressColor;
+        colorTexture._vf.repeatT = false;
+        colorTexture._vf.repeatS = false;
+        textures.addChild(colorTexture, 'texture');
+        colorTexture.nodeChanged();
+        var colorTextureField = new x3dom.nodeTypes.Field(ctx);
+        colorTextureField._vf.name = 'texColor';
+        colorTextureField._vf.type = 'SFInt32';
+        colorTextureField._vf.value = 0;
+        composedShader.addChild(colorTextureField, 'fields');
+        colorTextureField.nodeChanged();
+
+        // create height-data
+        var heightTexProp = new x3dom.nodeTypes.TextureProperties(ctx);
+        heightTexProp._vf.boundaryModeS = "CLAMP_TO_EDGE";
+        heightTexProp._vf.boundaryModeT = "CLAMP_TO_EDGE";
+        heightTexProp._vf.boundaryModeR = "CLAMP_TO_EDGE";
+        heightTexProp._vf.minificationFilter = "NEAREST";
+        heightTexProp._vf.magnificationFilter = "NEAREST";
+        heightTexture.addChild(heightTexProp, "textureProperties");
+        heightTexture.nodeChanged();
+        heightTexture._nameSpace = bvhRefiner._nameSpace;
+        heightTexture._vf.url[0] = imageAddressHeight;
+        heightTexture._vf.repeatT = false;
+        heightTexture._vf.repeatS = false;
+        heightTexture._vf.scale = false;
+        textures.addChild(heightTexture, 'texture');
+        heightTexture.nodeChanged();
+        var heightTextureField = new x3dom.nodeTypes.Field(ctx);
+        heightTextureField._vf.name = 'texHeight';
+        heightTextureField._vf.type = 'SFInt32';
+        heightTextureField._vf.value = 1;
+        composedShader.addChild(heightTextureField, 'fields');
+        heightTextureField.nodeChanged();
+
+        if (bvhRefiner._vf.normalUrl !== "") {
+            var normalTexProp = new x3dom.nodeTypes.TextureProperties(ctx);
+            normalTexProp._vf.boundaryModeS = "CLAMP_TO_EDGE";
+            normalTexProp._vf.boundaryModeT = "CLAMP_TO_EDGE";
+            normalTexProp._vf.boundaryModeR = "CLAMP_TO_EDGE";
+            normalTexProp._vf.minificationFilter = "LINEAR";
+            normalTexProp._vf.magnificationFilter = "LINEAR";
+            normalTexture.addChild(normalTexProp, "textureProperties");
+            normalTexture.nodeChanged();
+            // create normal-data
+            normalTexture._nameSpace = bvhRefiner._nameSpace;
+            normalTexture._vf.url[0] = imageAddressNormal;
+            normalTexture._vf.repeatT = false;
+            normalTexture._vf.repeatS = false;
+            textures.addChild(normalTexture, 'texture');
+            normalTexture.nodeChanged();
+            var normalTextureField = new x3dom.nodeTypes.Field(ctx);
+            normalTextureField._vf.name = 'texNormal';
+            normalTextureField._vf.type = 'SFInt32';
+            normalTextureField._vf.value = 2;
+            composedShader.addChild(normalTextureField, 'fields');
+            normalTextureField.nodeChanged();
+        }
+
+        // transmit maximum elevation value to gpu
+        var maxHeight = new x3dom.nodeTypes.Field(ctx);
+        maxHeight._vf.name = 'maxElevation';
+        maxHeight._vf.type = 'SFFloat';
+        maxHeight._vf.value = bvhRefiner._vf.maxElevation;
+        composedShader.addChild(maxHeight, 'fields');
+        maxHeight.nodeChanged();
+
+        // add textures to the appearence of this node
+        appearance.addChild(textures);
+        textures.nodeChanged();
+        appearance.addChild(composedShader);
+        composedShader.nodeChanged();
+
+        // create shape with geometry and appearance data
+        shape.addChild(appearance);
+        appearance.nodeChanged();
+        shape.addChild(geometry);
+
+        // add shape to bvhRefiner object
+        bvhRefiner.addChild(shape);
+        shape.nodeChanged();
+
+        // definition the static properties of cullObject
+        cullObject.boundedNode = shape;
+        cullObject.volume = shape.getVolume();
+        // setting max and min in z-direction to get the complete volume
+        cullObject.volume.max.z = bvhRefiner._vf.maxElevation;
+        cullObject.volume.min.z = 0;
+
+        cullObject.volume.center = cullObject.volume.min.add(cullObject.volume.max).multiply(0.5);
+        cullObject.volume.transform(nodeTransformation);
+        //shape._graph.volume = cullObject.volume;
+
+        calculateNeighborhood();
+    }
+
+
+
+    function calculateNeighborhood() {
+
+        // stores the start-ID of this level in quadList
+        var levelStartID = 0;
+
+        // calculate id in quadList where to store this quad
+        for (var i = 0; i < level; i++) {
+            levelStartID += Math.pow(4, i);
+        }
+        var sid = levelStartID + nodeNumber;
+        bvhRefiner.nodeList[sid] = that;
+
+        var c = Math.sqrt(Math.pow(4, level));
+        // calculate neighbor-IDs
+        // on the left side of the quad
+        neighbors[0] = levelStartID + (Math.ceil(((nodeNumber + 1) / c) - 1) * c + ((nodeNumber + (c - 1)) % c));
+        // on the right side of the quad
+        neighbors[1] = levelStartID + (Math.ceil(((nodeNumber + 1) / c) - 1) * c + ((nodeNumber + 1) % c));
+        // on the top side of the quad
+        neighbors[3] = levelStartID + (nodeNumber + (c * (c - 1))) % (Math.pow(4, level));
+        // on the bottom side of the quad
+        neighbors[2] = levelStartID + (nodeNumber + c) % (Math.pow(4, level));
+
+        if (columnNr === 0) { neighbors[0] = -1; }
+        if (rowNr === 0) { neighbors[3] = -1; }
+        if (columnNr === c - 1) { neighbors[1] = -1; }
+        if (rowNr === c - 1) { neighbors[2] = -1; }
+    }
+
+
+
+    /*
+     * Creates the code for the vertex shader
+     * @returns {String} code of the vertex shader
+     */
+    function createVertexShader() {
+        if (bvhRefiner._vf.normalUrl !== "")
+            return "attribute vec3 position;\n" +
+                "attribute vec3 texcoord;\n" +
+                "uniform mat4 modelViewMatrix;\n" +
+                "uniform mat4 modelViewProjectionMatrix;\n" +
+                "uniform sampler2D texColor;\n" +
+                "uniform sampler2D texHeight;\n" +
+                "uniform float maxElevation;\n" +
+                "uniform sampler2D texNormal;\n" +
+                "varying vec2 texC;\n" +
+                "varying vec3 vLight;\n" +
+                "const float shininess = 32.0;\n" +
+                "\n" +
+                "void main(void) {\n" +
+                "    vec3 uLightPosition = vec3(160.0, -9346.0, 4806.0);\n" +
+                "    vec4 colr = texture2D(texColor, vec2(texcoord[0], 1.0-texcoord[1]));\n" +
+                "    vec3 uAmbientMaterial = vec3(1.0, 1.0, 0.9);" +
+                "    vec3 uAmbientLight = vec3(0.5, 0.5, 0.5);" +
+                "    vec3 uDiffuseMaterial = vec3(0.7, 0.7, 0.7);" +
+                "    vec3 uDiffuseLight = vec3(1.0, 1.0, 1.0);" +
+                "    vec4 vertexPositionEye4 = modelViewMatrix * vec4(position, 1.0);" +
+                "    vec3 vertexPositionEye3 = vec3((modelViewMatrix * vec4(vertexPositionEye4.xyz, 1.0)).xyz);" +
+                "    vec3 vectorToLightSource = normalize(uLightPosition - vertexPositionEye3);" +
+                "    vec4 height = texture2D(texHeight, vec2(texcoord[0], 1.0 - texcoord[1]));\n" +
+                "    vec4 normalEye = 2.0 * texture2D(texNormal, vec2(texcoord[0], 1.0-texcoord[1])) - 1.0;\n" +
+                "    float diffuseLightWeighting = max(dot(normalEye.xyz, vectorToLightSource), 0.0);" +
+                "    texC = vec2(texcoord[0], 1.0-texcoord[1]);\n" +
+                "    vec3 diffuseReflectance = uDiffuseMaterial * uDiffuseLight * diffuseLightWeighting;" +
+                "    vec3 uSpecularMaterial = vec3(0.0, 0.0, 0.0);" +
+                "    vec3 uSpecularLight = vec3(1.0, 1.0, 1.0);" +
+                "    vec3 reflectionVector = normalize(reflect(-vectorToLightSource, normalEye.xyz));" +
+                "    vec3 viewVectorEye = -normalize(vertexPositionEye3);" +
+                "    float rdotv = max(dot(reflectionVector, viewVectorEye), 0.0);" +
+                "    float specularLightWeight = pow(rdotv, shininess);" +
+                "    vec3 specularReflection = uSpecularMaterial * uSpecularLight * specularLightWeight;" +
+                "    vLight = vec4(uAmbientMaterial * uAmbientLight + diffuseReflectance + specularReflection, 1.0).xyz;" +
+                "    gl_Position = modelViewProjectionMatrix * vec4(position.xy, height.x * maxElevation, 1.0);\n" +
+                "}\n";
+        else
+            return "attribute vec3 position;\n" +
+                "attribute vec3 texcoord;\n" +
+                "uniform mat4 modelViewProjectionMatrix;\n" +
+                "uniform sampler2D texHeight;\n" +
+                "uniform float maxElevation;\n" +
+                "varying vec2 texC;\n" +
+                "\n" +
+                "void main(void) {\n" +
+                "    vec4 height = texture2D(texHeight, vec2(texcoord[0], 1.0 - texcoord[1]));\n" +
+                "    texC = vec2(texcoord[0], 1.0-texcoord[1]);\n" +
+                "    gl_Position = modelViewProjectionMatrix * vec4(position.xy, height.x * maxElevation, 1.0);\n" +
+                "}\n";
+    }
+
+
+
+    /*
+     * Creates the code for the fragment shader
+     * @returns {String} code of the fragment shader
+     */
+    function createFragmentShader() {
+        if (bvhRefiner._vf.normalUrl !== "")
+            return "#ifdef GL_ES\n" +
+                "precision highp float;\n" +
+                "#endif\n" +
+                "uniform sampler2D texColor;\n" +
+                "uniform sampler2D texNormal;\n" +
+                "varying vec2 texC;\n" +
+                "varying vec3 vLight;\n" +
+                "\n" +
+                "\n" +
+                "void main(void) {\n" +
+                "    vec4 normal = 2.0 * texture2D(texNormal, texC) - 1.0;\n" +
+                "    vec4 colr = texture2D(texColor, texC);\n" +
+                "    gl_FragColor = vec4(colr.xyz * vLight, colr.w);\n" +
+                "}\n";
+        else
+            return "#ifdef GL_ES\n" +
+                "precision highp float;\n" +
+                "#endif\n" +
+                "uniform sampler2D texColor;\n" +
+                "varying vec2 texC;\n" +
+                "\n" +
+                "\n" +
+                "void main(void) {\n" +
+                "    gl_FragColor = texture2D(texColor, texC);\n" +
+                "}\n";
+    }
+
+
+
+    this.CreateChildren = function() {
+        create();
+    };
+
+
+
+    /*
+     * Creates the four children
+     */
+    function create() {
+
+        // calculation of children number nodeNumber within their level
+        var deltaR = Math.sqrt(Math.pow(4, level));
+        var deltaR1 = Math.sqrt(Math.pow(4, level + 1));
+        var lt = Math.floor(nodeNumber / deltaR) * 4 * deltaR +
+                           (nodeNumber % deltaR) * 2;
+        var rt = lt + 1;
+        var lb = lt + deltaR1;
+        var rb = lb + 1;
+
+        // calculation of the scaling factor
+        var s = (bvhRefiner._vf.size).multiply(0.25);
+
+        // creation of all children
+        children.push(new QuadtreeNode3D(ctx, bvhRefiner, (level + 1), lt,
+            nodeTransformation.mult(x3dom.fields.SFMatrix4f.translation(
+                    new x3dom.fields.SFVec3f(-s.x, s.y, 0.0))).mult(x3dom.fields.SFMatrix4f.scale(
+                    new x3dom.fields.SFVec3f(0.5, 0.5, 1.0))), (columnNr * 2), (rowNr * 2), geometry));
+        children.push(new QuadtreeNode3D(ctx, bvhRefiner, (level + 1), rt,
+            nodeTransformation.mult(x3dom.fields.SFMatrix4f.translation(
+                    new x3dom.fields.SFVec3f(s.x, s.y, 0.0))).mult(x3dom.fields.SFMatrix4f.scale(
+                    new x3dom.fields.SFVec3f(0.5, 0.5, 1.0))), (columnNr * 2 + 1), (rowNr * 2), geometry));
+        children.push(new QuadtreeNode3D(ctx, bvhRefiner, (level + 1), lb,
+            nodeTransformation.mult(x3dom.fields.SFMatrix4f.translation(
+                    new x3dom.fields.SFVec3f(-s.x, -s.y, 0.0))).mult(x3dom.fields.SFMatrix4f.scale(
+                    new x3dom.fields.SFVec3f(0.5, 0.5, 1.0))), (columnNr * 2), (rowNr * 2 + 1), geometry));
+        children.push(new QuadtreeNode3D(ctx, bvhRefiner, (level + 1), rb,
+            nodeTransformation.mult(x3dom.fields.SFMatrix4f.translation(
+                    new x3dom.fields.SFVec3f(s.x, -s.y, 0.0))).mult(x3dom.fields.SFMatrix4f.scale(
+                    new x3dom.fields.SFVec3f(0.5, 0.5, 1.0))), (columnNr * 2 + 1), (rowNr * 2 + 1), geometry));
+    }
+
+
+
+    this.Shape = function(){
+        return shape;
+    };
+
+
+
+    /*
+     * Returns if the children of this node exist and are ready to render
+     */
+    this.ChildrenReady = function(){
+        return childrenReadyState;
+    };
+
+
+
+    /*
+     * Runs only local ready() method. This is needed from parent to ask if
+     * all children are ready to render or not
+     */
+    this.Ready = function(){
+        if (shape._webgl !== undefined && shape._webgl.texture !== undefined) {
+                return ready();
+        }
+
+        return false;
+    };
+
+
+
+    /*
+     * Iterates through all textures of this node and sets readState parameter
+     * to true if all textures have been loaded to gpu yet, false if not.
+     */
+    function ready() {
+        readyState = true;
+        for (var i = 0; i < shape._webgl.texture.length; i++){
+            if (!shape._webgl.texture[i].texture.ready){
+                readyState = false;
+            }
+        }
+
+        return readyState;
+    }
+
+
+
+    /*
+     * Updates the loading state of children and initializes this node
+     * if this wasn't done before
+     */
+    function updateLoadingState(drawableCollection, transform){
+
+        childrenReadyState = true;
+        for (var i = 0; i < children.length; i++){
+            if (!children[i].Ready()) {
+                childrenReadyState = false;
+            }
+        }
+
+        if (children.length < 4){
+            childrenReadyState = false;
+        }
+        else if (childrenReadyState) {
+            for (var i = 0; i < children.length; i++){
+                children[i].Shape()._vf.render = true;
+            }
+        }
+
+        if (shape._webgl === undefined || shape._webgl.texture === undefined) {
+            drawableCollection.context.setupShape(drawableCollection.gl,
+                                                 {shape:shape, transform:transform},
+                                                  drawableCollection.viewarea);
+        }
+        else {
+            ready();
+        }
+
+    }
+
+
+
+
+    /*
+     * Decides to create new children and if the node shoud be drawn or not
+     * @param {x3dom.fields.SFMatrix4f} transform outer transformation matrix
+     * @param {x3dom.DrawableCollection} drawableCollection
+     * @param {bool} singlePath
+     * @param {bool} invalidateCache
+     * @param {number} planeMask
+     * @returns {null}
+     */
+    this.collectDrawables = function (transform, drawableCollection, singlePath, invalidateCache, planeMask) {
+
+        // TODO: IMPLEMENT RIGHT
+        drawableCollection.frustumCulling = false;
+
+
+        // definition the actual transformation of the node
+        cullObject.localMatrix = nodeTransformation;
+        // Checks the actual loading state of itself and children if something wasn't loaded in last frame
+        if (!readyState || !childrenReadyState) {
+            updateLoadingState(drawableCollection, nodeTransformation);
+        }
+        var mat_view = drawableCollection.viewMatrix;
+        var vPos = mat_view.multMatrixPnt(nodeTransformation.multMatrixPnt(position));
+        var distanceToCamera = Math.sqrt(Math.pow(vPos.x, 2) + Math.pow(vPos.y, 2) + Math.pow(vPos.z, 2));
+
+        //if (readyState && (planeMask = drawableCollection.cull(nodeTransformation, shape.graphState(), singlePath, planeMask)) > 0) {
+        if (readyState && vPos.z - (cullObject.volume.diameter / 2) < 0) {
+            if ((distanceToCamera < Math.pow((bvhRefiner._vf.maxDepth - level), 2) * resizeFac / bvhRefiner._vf.factor) ||
+                    level < bvhRefiner._vf.minDepth) {
+                if (bvhRefiner.view.isMoving() && (children.length == 0 || level >= bvhRefiner._vf.interactionDepth)){
+                    render(nodeTransformation, drawableCollection, singlePath, invalidateCache, planeMask);
+                }
+                else {
+                    if (children.length === 0) {
+                        bvhRefiner.nodeProducer.AddNewNode(that, distanceToCamera);
+                        render(nodeTransformation, drawableCollection, singlePath, invalidateCache, planeMask);
+                    }
+                    else {
+                        if (childrenReadyState){
+                            for (var i = 0; i < children.length; i++) {
+                                children[i].collectDrawables(nodeTransformation, drawableCollection, singlePath, invalidateCache, planeMask);
+                            }
+                        }
+                        else {
+                            render(nodeTransformation, drawableCollection, singlePath, invalidateCache, planeMask);
+                            for (var i = 0; i < children.length; i++) {
+                                children[i].collectDrawables(nodeTransformation, drawableCollection, singlePath, invalidateCache, planeMask);
+                                children[i].Shape()._vf.render = false;
+                            }
+                        }
+                    }
+                }
+            }
+            else {
+                render(nodeTransformation, drawableCollection, singlePath, invalidateCache, planeMask);
+            }
+        }
+    };
+
+
+
+    /*
+     * Decides if this node should be rendered or the children of this node
+     * @param {x3dom.DrawableCollection} drawableCollection
+     * @returns {Boolean}
+     */
+    this.hasHigherRenderLevel = function(drawableCollection){
+
+            var mat_view = drawableCollection.viewMatrix;
+            var vPos = mat_view.multMatrixPnt(nodeTransformation.multMatrixPnt(position));
+            var distanceToCamera = Math.sqrt(Math.pow(vPos.x, 2) + Math.pow(vPos.y, 2) + Math.pow(vPos.z, 2));
+
+            if (distanceToCamera < Math.pow((bvhRefiner._vf.maxDepth - level), 2) * resizeFac / bvhRefiner._vf.factor){
+                return true;
+            }
+
+
+        return false;
+    };
+
+
+
+    /*
+     * Renders the object with the required patch version
+     * @param {x3dom.fields.SFMatrix4f} transform outer transformation matrix
+     * @param {x3dom.DrawableCollection} drawableCollection
+     * @param {bool} singlePath
+     * @param {bool} invalidateCache
+     * @param {number} planeMask
+     * @returns {null}
+     */
+    function render(transform, drawableCollection, singlePath, invalidateCache, planeMask){
+
+        var hasNeighborHigherResolution = [];
+        // Calculation if neighbors levels
+        for (var i = 0; i < neighbors.length; i++){
+            if (bvhRefiner.nodeList[neighbors[i]] !== undefined) {
+                if (bvhRefiner.nodeList[neighbors[i]].ChildrenReady() &&
+                    bvhRefiner.nodeList[neighbors[i]].hasHigherRenderLevel(drawableCollection))
+                    hasNeighborHigherResolution.push(true);
+                else
+                    hasNeighborHigherResolution.push(false);
+            }
+            else {
+                hasNeighborHigherResolution.push(false);
+            }
+        }
+
+        var indiceNumber = 0;
+        //hasNeighborHigherResolution --> 0=left, 1=right, 2=bottom, 3=top
+        if (hasNeighborHigherResolution[3]) {
+            if (hasNeighborHigherResolution[1]) {
+                indiceNumber = 5;
+            }
+            else if (hasNeighborHigherResolution[0]) {
+                indiceNumber = 6;
+            }
+            else {
+                indiceNumber = 4;
+            }
+        }
+        else if (hasNeighborHigherResolution[2]) {
+            if (hasNeighborHigherResolution[1]) {
+                indiceNumber = 8;
+            }
+            else if (hasNeighborHigherResolution[0]) {
+                indiceNumber = 7;
+            }
+            else {
+                indiceNumber = 3;
+            }
+        }
+        else if (hasNeighborHigherResolution[0]) {
+            indiceNumber = 1;
+        }
+        else if (hasNeighborHigherResolution[1]) {
+            indiceNumber = 2;
+        }
+
+        if (lastIndice !== indiceNumber || triangulationAttributes === null){
+            triangulationAttributes = shape._cf.geometry.node.getTriangulationAttributes(indiceNumber);
+            lastIndice = indiceNumber;
+        }
+        shape._tessellationProperties = [ triangulationAttributes ];
+        shape.collectDrawableObjects(nodeTransformation, drawableCollection, singlePath, invalidateCache, planeMask);
+    }
+
+
+
+    /*
+     * Returns the volume of this node
+     */
+    this.getVolume = function() {
+        // TODO; implement correctly, for now just use first shape as workaround
+        return shape.getVolume();
+    };
+
+
+
+    this.Level = function() {
+        return level;
+    };
+
+
+    var that = this;
+    // initializes this node directly after creating
+    initialize();
+}
+
+
+
+
+/*****************************************************************************************************************************
+ *****************************************************************************************************************************
+ ************************************************ QuadtreeNodeBin ************************************************************
+ *****************************************************************************************************************************
+ ****************************************************************************************************************************/
+
+/*
+ * Defines one node of a quadtree that represents a part (nxn vertices) of
+ * the whole mesh, that represents a binary geometry object.
+ * @param {object} ctx context
+ * @param {x3dom.nodeTypes.BVHRefiner} bvhRefiner root bvhRefiner node
+ * @param {number} level level of the node within the quadtree
+ * @param {number} columnNr column number in the wmts matrix within the level
+ * @param {number} rowNr row number in the wmts matrix within the level
+ * @param {number} resizeFac defines the resizing factor. Can be null on init
+ * @returns {QuadtreeNodeBin}
+ */
+function QuadtreeNodeBin(ctx, bvhRefiner, level, columnNr, rowNr, resizeFac)
+{
+    // object that stores all information to do a frustum culling
+    var cullObject = {};
+    // temporary variable to store the view matrix
+    var mat_view;
+    // temporary position of this node in view space
+    var vPos;
+    // temporary distance to camera in view space
+    var distanceToCamera;
+    // factor redefinition to get a view about the whole scene on level three
+    var fac = ((1 / 4 * Math.pow(level, 2) + 1.5) * 0.1) * bvhRefiner._vf.factor;
+    // array with the maximal four child nodes
+    var children = [];
+    // true if a file for the children is available
+    var childrenExist = false;
+    // true if this component is available and renderable
+    var readyState = false;
+    // checks if children are ready
+    var childrenReadyState = false;
+    // path to x3d-file that should be loaded
+    var path = bvhRefiner._vf.url + "/" + level + "/" + columnNr + "/";
+    // address of the image for the bvhRefiner height-data
+    var file = path + rowNr + ".x3d";
+     // position of the node in world space
+    var position = new x3dom.fields.SFVec3f(0.0, 0.0, 0.0);
+    // stores if file has been loaded
+    var exists = false;
+    // drawable component of this node
+    var shape = new x3dom.nodeTypes.Shape(ctx);
+
+
+    // loader for binary geometry files
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", file, false);
+    // Try to load the binary geometry files
+    try {
+        xhr.send();
+
+        var xmlDoc = xhr.responseXML;
+        if (xmlDoc !== null) {
+            var replacer = new RegExp("\"", "g");
+            createGeometry(shape);
+            initialize();
+            exists = true;
+        }
+    }
+    catch (exp) {
+        x3dom.debug.logException("Error loading file '" + file + "': " + exp);
+    }
+
+
+    this.Exists = function () {
+        return exists;
+    };
+
+
+    this.Shape = function () {
+        return shape;
+    };
+
+
+
+    /*
+    * creates the geometry of this node
+    */
+    function createGeometry(parent) {
+        // definition of nameSpace
+        this._nameSpace = new x3dom.NodeNameSpace("", bvhRefiner._nameSpace.doc);
+        this._nameSpace.setBaseURL(bvhRefiner._nameSpace.baseURL + path);
+        var tempShape = xmlDoc.getElementsByTagName("Shape")[0];
+        shape = this._nameSpace.setupTree(tempShape);
+        if (!bvhRefiner._vf.useNormals) {
+            var appearance = new x3dom.nodeTypes.Appearance(ctx);
+            var material = new x3dom.nodeTypes.Material(ctx);
+            appearance.addChild(material);
+            shape._cf.appearance = appearance;
+        }
+        position = x3dom.fields.SFVec3f.copy(shape._cf.geometry.node._vf.position);
+    }
+
+
+
+    /*
+    * creates the appearance for this node and add it to the dom tree
+    */
+    function initialize() {
+
+        // bind static cull-properties to cullObject
+        cullObject.boundedNode = shape;
+        cullObject.volume = shape.getVolume();
+    }
+
+
+
+    this.CreateChildren = function () {
+        create();
+    };
+
+
+
+    /*
+     * creates the four child-nodes
+     */
+    function create() {
+        children.push(new QuadtreeNodeBin(ctx, bvhRefiner, (level + 1), (columnNr * 2), (rowNr * 2), resizeFac));
+        children.push(new QuadtreeNodeBin(ctx, bvhRefiner, (level + 1), (columnNr * 2 + 1), (rowNr * 2), resizeFac));
+        children.push(new QuadtreeNodeBin(ctx, bvhRefiner, (level + 1), (columnNr * 2), (rowNr * 2 + 1), resizeFac));
+        children.push(new QuadtreeNodeBin(ctx, bvhRefiner, (level + 1), (columnNr * 2 + 1), (rowNr * 2 + 1), resizeFac));
+    }
+
+
+
+    /*
+    * Runs only local ready() method. This is needed from parent to ask if
+    * all children are ready to render or not
+    */
+    this.Ready = function () {
+        if (shape._webgl !== undefined && shape._webgl.internalDownloadCount !== undefined) {
+            return ready();
+        }
+
+        return false;
+    };
+
+
+
+    /*
+    * Iterates through all textures of this node and sets readState parameter
+    * to true if all textures have been loaded to gpu yet, false if not.
+    */
+    function ready() {
+        readyState = true;
+
+        if (shape._webgl.internalDownloadCount > 0) {
+            readyState = false;
+        }
+
+        return readyState;
+    }
+
+
+
+    /*
+    * Updates the loading state of children and initializes this node
+    * if this wasn't done before
+    */
+    function updateLoadingState(drawableCollection, transform) {
+
+        childrenReadyState = true;
+        for (var i = 0; i < children.length; i++) {
+            if (!children[i].Ready()) {
+                childrenReadyState = false;
+            }
+        }
+
+        if (childrenReadyState){
+            for (var i = 0; i < children.length; i++){
+                children[i].Shape()._vf.render = true;
+            }
+        }
+
+        if (shape._cf.geometry.node !== null) {
+            if (shape._webgl === undefined || shape._webgl.internalDownloadCount === undefined) {
+                drawableCollection.context.setupShape(drawableCollection.gl,
+                                                     { shape: shape, transform: transform },
+                                                      drawableCollection.viewarea);
+            }
+            else {
+                ready();
+            }
+        }
+    }
+
+
+
+    /*
+    * Decides to create new children and if the node shoud be drawn or not
+    */
+    this.collectDrawables = function (transform, drawableCollection, singlePath, invalidateCache, planeMask) {
+
+        // THIS CALC IS ONLY FOR THE DEMO AND HAS TO BE DELETED AFTER IT
+        fac = ((1 / 4 * Math.pow(level, 2) + 1.5) * 0.1) * bvhRefiner._vf.factor;
+
+        // definition the actual transformation of the node
+        cullObject.localMatrix = transform;
+
+        // Checks the actual loading state of itself and children if something wasn't loaded in last frame
+        if (!readyState || !childrenReadyState) { updateLoadingState(drawableCollection, transform); }
+
+        if (readyState && exists && (planeMask = drawableCollection.cull(transform, cullObject, singlePath, planeMask)) > 0) {
+            mat_view = drawableCollection.viewMatrix;
+            vPos = mat_view.multMatrixPnt(transform.multMatrixPnt(position));
+            distanceToCamera = Math.sqrt(Math.pow(vPos.x, 2) + Math.pow(vPos.y, 2) + Math.pow(vPos.z, 2));
+
+            if ((distanceToCamera < Math.pow((bvhRefiner._vf.maxDepth - level), 2) / fac * 1000) || level < bvhRefiner._vf.minDepth) {
+                if (bvhRefiner.view.isMoving() && level >= bvhRefiner._vf.interactionDepth) {
+                    shape.collectDrawableObjects(transform, drawableCollection, singlePath, invalidateCache, planeMask);
+                }
+                else {
+                    if (children.length === 0) {
+                        bvhRefiner.nodeProducer.AddNewNode(that, distanceToCamera);
+                        shape.collectDrawableObjects(transform, drawableCollection, singlePath, invalidateCache, planeMask);
+                    }
+                    else if (children.length === 0 && bvhRefiner.createChildren > 0) {
+                        shape.collectDrawableObjects(transform, drawableCollection, singlePath, invalidateCache, planeMask);
+                    }
+                    else {
+                        if (!childrenExist) {
+                            for (var i = 0; i < children.length; i++) {
+                                if (children[i].Exists()) {
+                                    childrenExist = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (childrenExist && childrenReadyState) {
+                            for (var i = 0; i < children.length; i++) {
+                                children[i].collectDrawables(transform, drawableCollection, singlePath, invalidateCache, planeMask);
+                            }
+                        }
+                        else {
+                            for (var i = 0; i < children.length; i++) {
+                                children[i].collectDrawables(transform, drawableCollection, singlePath, invalidateCache, planeMask);
+                                children[i].Shape()._vf.render = false;
+                            }
+                            shape.collectDrawableObjects(transform, drawableCollection, singlePath, invalidateCache, planeMask);
+                        }
+                    }
+                }
+            }
+            else {
+                shape.collectDrawableObjects(transform, drawableCollection, singlePath, invalidateCache, planeMask);
+            }
+        }
+    };
+
+
+
+    /*
+    * Returns the volume of this node
+    */
+    this.getVolume = function () {
+        // TODO; implement correctly, for now just use first shape as workaround
+        return shape.getVolume();
+    };
+
+
+
+    this.Level = function () {
+        return level;
+    };
+
+
+    var that = this;
+    // initializes this node directly after creating
+    initialize();
+}
+
+
+
+
+/*****************************************************************************************************************************
+ *****************************************************************************************************************************
+ ***************************************************** BVHNode ***************************************************************
+ *****************************************************************************************************************************
+ ****************************************************************************************************************************/
+
+/*
+ * Defines one node of an arbitrary tree that represents a part (nxn vertices)
+ * of the entire point cloud
+ * @param {object} ctx context
+ * @param {x3dom.nodeTypes.BVHRefiner} bvhRefiner root bvhRefiner node
+ * @param {number} level level of the node within the quadtree
+ * @param {number} columnNr column number in the wmts matrix within the level
+ * @param {number} rowNr row number in the wmts matrix within the level
+ * @param {number} resizeFac defines the resizing factor. Can be null on init
+ * @returns {OctreeNode}
+ */
+function BVHNode(ctx, bvhRefiner, level, path, imgNumber, count)
+{
+    // object that stores all information to do a frustum culling
+    var cullObject = {};
+    // temporary variable to store the view matrix
+    var mat_view;
+    // temporary position of this node in view space
+    var vPos;
+    // temporary distance to camera in view space
+    var distanceToCamera;
+    // factor redefinition to get a view about the whole scene on level three
+    var fac = ((1/4 * Math.pow(level, 2) + 1.5) * 0.1) * bvhRefiner._vf.factor;
+    // array with the maximal four child nodes
+    var children = [];
+    // true if a file for the children is available
+    var childrenExist = false;
+    // true if this component is available and renderable
+    var readyState = false;
+    // checks if children are ready
+    var childrenReadyState = false;
+    // address of the image for the bvhRefiner height-data
+    var file = bvhRefiner._vf.url + path + imgNumber + ".x3d";
+    // position of the node in world space
+    var position = new x3dom.fields.SFVec3f(0.0, 0.0, 0.0);
+    // stores if file has been loaded
+    var exists = false;
+    // drawable component of this node
+    var shape = new x3dom.nodeTypes.Shape(ctx);
+
+
+    this.RecalcFactor = function() {
+        fac = ((1/4 * Math.pow(level, 2) + 1.5) * 0.1) * bvhRefiner._vf.factor;
+        for (var i = 0; i < children.length; i++){
+            children[i].RecalcFactor();
+        }
+    };
+
+
+
+    // loader for binary geometry files
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", file, false);
+    // Try to load the binary geometry files
+    try {
+        xhr.send();
+
+        var xmlDoc = xhr.responseXML;
+        if (xmlDoc !== null) {
+            var replacer = new RegExp("\"", "g");
+            createGeometry(shape);
+            initialize();
+            exists = true;
+        }
+    }
+    catch (exp) {
+        x3dom.debug.logException("Error loading file '" + file + "': " + exp);
+    }
+
+
+    this.Exists = function()
+    {
+        return exists;
+    };
+
+
+    this.Shape = function(){
+        return shape;
+    };
+
+
+
+    /*
+     * creates the geometry of this node
+     */
+    function createGeometry(parent) {
+        // definition of nameSpace
+        this._nameSpace = new x3dom.NodeNameSpace("", bvhRefiner._nameSpace.doc);
+        this._nameSpace.setBaseURL(bvhRefiner._nameSpace.baseURL + bvhRefiner._vf.url + path);
+        var tempShape = xmlDoc.getElementsByTagName("Shape")[0];
+        shape = this._nameSpace.setupTree(tempShape);
+        if (!bvhRefiner._vf.useNormals){
+            var appearance = new x3dom.nodeTypes.Appearance(ctx);
+            var material = new x3dom.nodeTypes.Material(ctx);
+            appearance.addChild(material);
+            shape._cf.appearance = appearance;
+        }
+        position = x3dom.fields.SFVec3f.copy(shape._cf.geometry.node._vf.position);
+    }
+
+
+
+    /*
+     * creates the appearance for this node and add it to the dom tree
+     */
+    function initialize() {
+
+        // bind static cull-properties to cullObject
+        cullObject.boundedNode = shape;
+        cullObject.volume = shape.getVolume();
+    }
+
+
+
+    this.CreateChildren = function() {
+        create();
+    };
+
+
+
+    /*
+     * creates the four child-nodes
+     */
+    function create() {
+        for (var i = 0; i < count; i++){
+            children.push(new BVHNode(ctx, bvhRefiner, (level + 1),
+                                      path + imgNumber + "/",
+                                      i + 1, count));
+        }
+    }
+
+
+
+    /*
+     * Runs only local ready() method. This is needed from parent to ask if
+     * all children are ready to render or not
+     */
+    this.Ready = function(){
+        if (shape._webgl !== undefined && shape._webgl.internalDownloadCount !== undefined) {
+                return ready();
+        }
+
+        return false;
+    };
+
+
+
+    /*
+     * Iterates through all textures of this node and sets readState parameter
+     * to true if all textures have been loaded to gpu yet, false if not.
+     */
+    function ready() {
+        return (shape._webgl.internalDownloadCount <= 0);
+    }
+
+
+
+    /*
+     * Updates the loading state of children and initializes this node
+     * if this wasn't done before
+     */
+    function updateLoadingState(drawableCollection, transform){
+
+        for (var i = 0; i < children.length; i++) {
+            childrenReadyState = true;
+            if (!children[i].Ready()) {
+                childrenReadyState = false;
+            }
+            else {
+                children[i].Shape()._vf.render = true;
+            }
+        }
+
+        if (shape._cf.geometry.node !== null) {
+            if (shape._webgl === undefined || shape._webgl.internalDownloadCount === undefined) {
+                drawableCollection.context.setupShape(drawableCollection.gl,
+                                                     {shape:shape, transform:transform},
+                                                      drawableCollection.viewarea);
+            }
+            else {
+                ready();
+            }
+        }
+    }
+
+
+
+    /*
+     * Decides to create new children and if the node shoud be drawn or not
+     */
+    this.collectDrawables = function (transform, drawableCollection, singlePath, invalidateCache, planeMask) {
+
+        // THIS CALC IS ONLY FOR THE DEMO AND HAS TO BE DELETED AFTER IT
+        fac = ((1/4 * Math.pow(level, 2) + 1.5) * 0.1) * bvhRefiner._vf.factor;
+
+        // definition the actual transformation of the node
+        cullObject.localMatrix = transform;
+
+        // Checks the actual loading state of itself and children if something wasn't loaded in last frame
+        if (!readyState || !childrenReadyState) { updateLoadingState(drawableCollection, transform); }
+
+        if (readyState && exists && (planeMask = drawableCollection.cull(transform, cullObject, singlePath, planeMask)) > 0) {
+            mat_view = drawableCollection.viewMatrix;
+            vPos = mat_view.multMatrixPnt(transform.multMatrixPnt(position));
+            distanceToCamera = Math.sqrt(Math.pow(vPos.x, 2) + Math.pow(vPos.y, 2) + Math.pow(vPos.z, 2));
+
+            if ((distanceToCamera < Math.pow((bvhRefiner._vf.maxDepth - level), 2) / fac) || level < bvhRefiner._vf.minDepth) {
+                if (bvhRefiner.view.isMoving() && level >= bvhRefiner._vf.interactionDepth) {
+                    shape.collectDrawableObjects(transform, drawableCollection, singlePath, invalidateCache, planeMask);
+                }
+                else {
+                    if (children.length === 0) {
+                        bvhRefiner.nodeProducer.AddNewNode(that, distanceToCamera);
+                        shape.collectDrawableObjects(transform, drawableCollection, singlePath, invalidateCache, planeMask);
+                    }
+                    else if (children.length === 0 && bvhRefiner.createChildren > 0) {
+                        shape.collectDrawableObjects(transform, drawableCollection, singlePath, invalidateCache, planeMask);
+                    }
+                    else {
+                        if (!childrenExist){
+                            for (var i = 0; i < children.length; i++) {
+                                if (children[i].Exists()) {
+                                    childrenExist = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (childrenExist && childrenReadyState){
+                            for (var i = 0; i < children.length; i++) {
+                                children[i].collectDrawables(transform, drawableCollection, singlePath, invalidateCache, planeMask);
+                            }
+                        }
+                        else {
+                            for (var i = 0; i < children.length; i++) {
+                                children[i].collectDrawables(transform, drawableCollection, singlePath, invalidateCache, planeMask);
+                                children[i].Shape()._vf.render = false;
+                            }
+                            shape.collectDrawableObjects(transform, drawableCollection, singlePath, invalidateCache, planeMask);
+                        }
+                    }
+                }
+            }
+            else {
+                shape.collectDrawableObjects(transform, drawableCollection, singlePath, invalidateCache, planeMask);
+            }
+        }
+    };
+
+
+
+    /*
+     * Returns the volume of this node
+     */
+    this.getVolume = function() {
+        // TODO; implement correctly, for now just use first shape as workaround
+        return shape.getVolume();
+    };
+
+
+
+    this.Level = function() {
+        return level;
+    };
+
+
+    var that = this;
+    // initializes this node directly after creating
+    initialize();
+}
+
+
+
+
+
+/*
+ * Defines one 3D node (plane with displacement) of a quadtree that represents
+ * a part (nxn vertices) of the whole mesh.
+ * @param {object} ctx context
+ * @param {x3dom.nodeTypes.BVHRefiner} bvhRefiner root bvhRefiner node
+ * @param {number} level level of the node within the quadtree
+ * @param {number} nodeNumber id of the node within the level
+ * @param {x3dom.fields.SFMatrix4f} nodeTransformation transformation matrix that defines scale and position
+ * @param {number} columnNr column number in the wmts matrix within the level
+ * @param {number} rowNr row number in the wmts matrix within the level
+ * @param {x3dom.nodeTypes.Plane} geometry plane
+ * @returns {QuadtreeNode3D}
+ */
+function QuadtreeNode3D_NEW(ctx, bvhRefiner, level, nodeNumber, nodeTransformation,
+                        columnNr, rowNr, geometry)
+{
+    // array with the maximal four child nodes
+    var children = [];
+    // drawable component of this node
+    var shape = new x3dom.nodeTypes.Shape();
+    // position of the node in world space
+    var position = null;
+    // address of the image for the bvhRefiner surface
+    var imageAddressColor = bvhRefiner._vf.textureUrl + "/" + level + "/" +
+                            columnNr + "/" + rowNr + "." +
+                            (bvhRefiner._vf.textureFormat).toLowerCase();
+    // address of the image for the bvhRefiner height-data
+    var imageAddressHeight = bvhRefiner._vf.elevationUrl + "/" + level + "/" +
+                             columnNr + "/" + rowNr + "." +
+                             (bvhRefiner._vf.elevationFormat).toLowerCase();
+    // address of the image for the bvhRefiner normal-data
+    var imageAddressNormal = bvhRefiner._vf.normalUrl + "/" + level + "/" +
+                             columnNr + "/" + rowNr + "." +
+                             (bvhRefiner._vf.normalFormat).toLowerCase();
+    // true if components are available and renderable
+    var exists = true;
+    // defines the resizing factor
+    var resizeFac = (bvhRefiner._vf.size.x + bvhRefiner._vf.size.y) / 2.0;
+    // object that stores all information to do a frustum culling
+    var cullObject = {};
+
+
+
+    /*
+     * Initializes all nodeTypes that are needed to create the drawable
+     * component for this node
+     */
+    function initialize() {
+
+        // appearance of the drawable component of this node
+        var appearance = new x3dom.nodeTypes.Appearance(ctx);
+        // multiTexture to get heightmap and colormap to gpu
+        var shader = new x3dom.nodeTypes.CommonSurfaceShader(ctx);
+        var ssTexColor = new x3dom.nodeTypes.SurfaceShaderTexture(ctx);
+        // texture that should represent the surface-data of this node
+        var colorTexture = new x3dom.nodeTypes.ImageTexture(ctx);
+        var ssTexDisplace = new x3dom.nodeTypes.SurfaceShaderTexture(ctx);
+        // texture that should represent the height-data of this node
+        var heightTexture = new x3dom.nodeTypes.ImageTexture(ctx);
+
+        // definition of the nameSpace of this shape
+        shape._nameSpace = bvhRefiner._nameSpace;
+
+        // calculate the average position of the node
+        position = nodeTransformation.e3();
+
+        shader._vf.displacementFactor = bvhRefiner._vf.maxElevation;
+
+        // create texture-data of this node with url's of the texture data
+        colorTexture._nameSpace = bvhRefiner._nameSpace;
+        colorTexture._vf.url[0] = imageAddressColor;
+        colorTexture._vf.repeatT = false;
+        colorTexture._vf.repeatS = false;
+        ssTexColor.addChild(colorTexture, 'texture');
+        colorTexture.nodeChanged();
+        shader.addChild(ssTexColor, 'diffuseTexture');
+        ssTexColor.nodeChanged();
+
+        // create height-data
+        heightTexture._nameSpace = bvhRefiner._nameSpace;
+        heightTexture._vf.url[0] = imageAddressHeight;
+        heightTexture._vf.repeatT = false;
+        heightTexture._vf.repeatS = false;
+        ssTexDisplace.addChild(heightTexture, 'texture');
+        heightTexture.nodeChanged();
+        shader.addChild(ssTexDisplace, 'displacementTexture');
+        heightTexture.nodeChanged();
+
+        appearance.addChild(shader, 'shaders');
+        shader.nodeChanged();
+
+        // create shape with geometry and appearance data
+        shape.addChild(appearance);
+        appearance.nodeChanged();
+        shape.addChild(geometry);
+        geometry.nodeChanged();
+
+        // add shape to bvhRefiner object
+        bvhRefiner.addChild(shape);
+        shape.nodeChanged();
+
+        // definition the static properties of cullObject
+        cullObject.boundedNode = shape;
+        cullObject.volume = shape.getVolume();
+        // setting max and min in z-direction to get the complete volume
+        cullObject.volume.max.z = Math.round(bvhRefiner._vf.maxElevation / 2);
+        cullObject.volume.min.z = -cullObject.volume.max.z;
+    }
+
+
+
+    /*
+     * Creates the code for the vertex shader
+     * @returns {String} code of the vertex shader
+     */
+    function createVertexShader() {
+        return "attribute vec3 position;\n" +
+            "attribute vec3 texcoord;\n" +
+            "uniform mat4 modelViewMatrix;\n" +
+            "uniform mat4 modelViewProjectionMatrix;\n" +
+            "uniform sampler2D texColor;\n" +
+            "uniform sampler2D texHeight;\n" +
+            "uniform float maxElevation;\n" +
+            "uniform sampler2D texNormal;\n" +
+            "varying vec2 texC;\n" +
+            "varying vec3 vLight;\n" +
+            "const float shininess = 32.0;\n" +
+            "\n" +
+            "void main(void) {\n" +
+            "    vec3 uLightPosition = vec3(160.0, -9346.0, 4806.0);\n" +
+            "    vec4 colr = texture2D(texColor, vec2(texcoord[0], 1.0-texcoord[1]));\n" +
+            "    vec3 uAmbientMaterial = vec3(1.0, 1.0, 0.9);" +
+            "    vec3 uAmbientLight = vec3(0.5, 0.5, 0.5);" +
+            "    vec3 uDiffuseMaterial = vec3(0.7, 0.7, 0.7);" +
+            "    vec3 uDiffuseLight = vec3(1.0, 1.0, 1.0);" +
+            "    vec4 vertexPositionEye4 = modelViewMatrix * vec4(position, 1.0);" +
+            "    vec3 vertexPositionEye3 = vec3((modelViewMatrix * vec4(vertexPositionEye4.xyz, 1.0)).xyz);" +
+            "    vec3 vectorToLightSource = normalize(uLightPosition - vertexPositionEye3);" +
+            "    vec4 height = texture2D(texHeight, vec2(texcoord[0], 1.0 - texcoord[1]));\n" +
+            "    vec4 normalEye = 2.0 * texture2D(texNormal, vec2(texcoord[0], 1.0-texcoord[1])) - 1.0;\n" +
+            "    float diffuseLightWeighting = max(dot(normalEye.xyz, vectorToLightSource), 0.0);" +
+            "    texC = vec2(texcoord[0], 1.0-texcoord[1]);\n" +
+            "    vec3 diffuseReflectance = uDiffuseMaterial * uDiffuseLight * diffuseLightWeighting;" +
+            "    vec3 uSpecularMaterial = vec3(0.0, 0.0, 0.0);" +
+            "    vec3 uSpecularLight = vec3(1.0, 1.0, 1.0);" +
+            "    vec3 reflectionVector = normalize(reflect(-vectorToLightSource, normalEye.xyz));" +
+            "    vec3 viewVectorEye = -normalize(vertexPositionEye3);" +
+            "    float rdotv = max(dot(reflectionVector, viewVectorEye), 0.0);" +
+            "    float specularLightWeight = pow(rdotv, shininess);" +
+            "    vec3 specularReflection = uSpecularMaterial * uSpecularLight * specularLightWeight;" +
+            "    vLight = vec4(uAmbientMaterial * uAmbientLight + diffuseReflectance + specularReflection, 1.0).xyz;" +
+            "    gl_Position = modelViewProjectionMatrix * vec4(position.xy, height.x * maxElevation, 1.0);\n" +
+            "}\n";
+    }
+
+
+
+    /*
+     * Creates the code for the fragment shader
+     * @returns {String} code of the fragment shader
+     */
+    function createFragmentShader() {
+        return "#ifdef GL_ES\n" +
+            "precision highp float;\n" +
+            "#endif\n" +
+            "uniform sampler2D texColor;\n" +
+            "uniform sampler2D texNormal;\n" +
+            "varying vec2 texC;\n" +
+            "varying vec3 vLight;\n" +
+            "\n" +
+            "\n" +
+            "void main(void) {\n" +
+            "    vec4 normal = 2.0 * texture2D(texNormal, texC) - 1.0;\n" +
+            "    vec4 colr = texture2D(texColor, texC);\n" +
+            "    gl_FragColor = vec4(colr.xyz * vLight, colr.w);\n" +
+            "}\n";
+    }
+
+
+
+    /*
+     * Creates the four children
+     */
+    function create() {
+
+        // calculation of children number nodeNumber within their level
+        var deltaR = Math.sqrt(Math.pow(4, level));
+        var deltaR1 = Math.sqrt(Math.pow(4, level + 1));
+        var lt = Math.floor(nodeNumber / deltaR) * 4 * deltaR +
+                           (nodeNumber % deltaR) * 2;
+        var rt = lt + 1;
+        var lb = lt + deltaR1;
+        var rb = lb + 1;
+
+        // calculation of the scaling factor
+        var s = (bvhRefiner._vf.size).multiply(0.25);
+
+        // creation of all children
+        children.push(new QuadtreeNode3D_NEW(ctx, bvhRefiner, (level + 1), lt,
+            nodeTransformation.mult(x3dom.fields.SFMatrix4f.translation(
+                    new x3dom.fields.SFVec3f(-s.x, s.y, 0.0))).mult(x3dom.fields.SFMatrix4f.scale(
+                    new x3dom.fields.SFVec3f(0.5, 0.5, 1.0))), (columnNr * 2), (rowNr * 2), geometry));
+        children.push(new QuadtreeNode3D_NEW(ctx, bvhRefiner, (level + 1), rt,
+            nodeTransformation.mult(x3dom.fields.SFMatrix4f.translation(
+                    new x3dom.fields.SFVec3f(s.x, s.y, 0.0))).mult(x3dom.fields.SFMatrix4f.scale(
+                    new x3dom.fields.SFVec3f(0.5, 0.5, 1.0))), (columnNr * 2 + 1), (rowNr * 2), geometry));
+        children.push(new QuadtreeNode3D_NEW(ctx, bvhRefiner, (level + 1), lb,
+            nodeTransformation.mult(x3dom.fields.SFMatrix4f.translation(
+                    new x3dom.fields.SFVec3f(-s.x, -s.y, 0.0))).mult(x3dom.fields.SFMatrix4f.scale(
+                    new x3dom.fields.SFVec3f(0.5, 0.5, 1.0))), (columnNr * 2), (rowNr * 2 + 1), geometry));
+        children.push(new QuadtreeNode3D_NEW(ctx, bvhRefiner, (level + 1), rb,
+            nodeTransformation.mult(x3dom.fields.SFMatrix4f.translation(
+                    new x3dom.fields.SFVec3f(s.x, -s.y, 0.0))).mult(x3dom.fields.SFMatrix4f.scale(
+                    new x3dom.fields.SFVec3f(0.5, 0.5, 1.0))), (columnNr * 2 + 1), (rowNr * 2 + 1), geometry));
+    }
+
+
+
+    /*
+     * Decides to create new children and if the node shoud be drawn or not
+     */
+    this.collectDrawables = function (transform, drawableCollection, singlePath, invalidateCache, planeMask) {
+
+        // definition the actual transformation of the node
+        cullObject.localMatrix = nodeTransformation;
+
+        if (exists && (planeMask = drawableCollection.cull(transform, cullObject, singlePath, planeMask)) > 0) {
+            var mat_view = drawableCollection.viewMatrix;
+            var vPos = mat_view.multMatrixPnt(transform.multMatrixPnt(position));
+            var distanceToCamera = Math.sqrt(Math.pow(vPos.x, 2) + Math.pow(vPos.y, 2) + Math.pow(vPos.z, 2));
+            if ((distanceToCamera < Math.pow((bvhRefiner._vf.maxDepth - level), 2) * resizeFac / bvhRefiner._vf.factor)) {
+                if (children.length === 0 && bvhRefiner.createChildren === 0) {
+                    bvhRefiner.createChildren++;
+                    create();
+                    shape.collectDrawableObjects(nodeTransformation, drawableCollection, singlePath, invalidateCache, planeMask);
+                }
+                else if (children.length === 0 && bvhRefiner.createChildren > 0) {
+                    shape.collectDrawableObjects(nodeTransformation, drawableCollection, singlePath, invalidateCache, planeMask);
+                }
+                else {
+                    for (var i = 0; i < children.length; i++) {
+                        children[i].collectDrawables(nodeTransformation, drawableCollection, singlePath, invalidateCache, planeMask);
+                    }
+                }
+            }
+            else {
+                shape.collectDrawableObjects(nodeTransformation, drawableCollection, singlePath, invalidateCache, planeMask);
+            }
+        }
+    };
+
+
+
+    /*
+     * Returns the volume of this node
+     */
+    this.getVolume = function() {
+        // TODO; implement correctly, for now just use first shape as workaround
+        return shape.getVolume();
+    };
+
+
+
+    // initializes this node directly after creating
+    initialize();
+}
+
+
+
+
+/*
+ * Defines one node of an octree that represents a part (nxn vertices) of
+ * the whole point cloud
+ * @param {object} ctx context
+ * @param {x3dom.nodeTypes.BVHRefiner} bvhRefiner root bvhRefiner node
+ * @param {number} level level of the node within the quadtree
+ * @param {number} columnNr column number in the wmts matrix within the level
+ * @param {number} rowNr row number in the wmts matrix within the level
+ * @param {number} resizeFac defines the resizing factor. Can be null on init
+ * @returns {QuadtreeNodeBin}
+ */
+function OctreeNode(ctx, bvhRefiner, level, nodeTransformation)
+{
+    // array with the maximal four child nodes
+    var children = [];
+    // position of the node in world space
+    var position = nodeTransformation.e3();
+    // drawable component of this node
+    var shape = new x3dom.nodeTypes.Shape(ctx);
+    // object that stores all information to do a frustum culling
+    var cullObject = {};
+    // defines the resizing factor
+    var resizeFac = (bvhRefiner._vf.octSize.x + bvhRefiner._vf.octSize.y + bvhRefiner._vf.octSize.z) / 3.0;
+
+
+
+    /*
+     * creates the appearance for this node and add it to the dom tree
+     */
+    function initialize() {
+
+        // appearance of the drawable component of this node
+        var appearance = new x3dom.nodeTypes.Appearance(ctx);
+        var geometry = new x3dom.nodeTypes.Box(ctx);
+
+        geometry._vf.size = bvhRefiner._vf.octSize;
+        geometry.fieldChanged('size');
+
+        // definition of nameSpace
+        shape._nameSpace = new x3dom.NodeNameSpace("", bvhRefiner._nameSpace.doc);
+        shape._nameSpace.setBaseURL(bvhRefiner._nameSpace.baseURL);
+
+        shape.addChild(appearance);
+        appearance.nodeChanged();
+        shape.addChild(geometry);
+        geometry.nodeChanged();
+
+        //bvhRefiner.addChild(shape);
+        shape.nodeChanged();
+
+        // bind static cull-properties to cullObject
+        cullObject.boundedNode = shape;
+        cullObject.volume = shape.getVolume();
+    }
+
+
+
+    /*
+     * creates the four child-nodes
+     */
+    function create() {
+        // calculation of the scaling factor
+        var s = bvhRefiner._vf.octSize.multiply(0.25);
+
+        // creation of all children
+        children.push(new OctreeNode(ctx, bvhRefiner, (level + 1),
+            nodeTransformation.mult(x3dom.fields.SFMatrix4f.translation(
+                    new x3dom.fields.SFVec3f(-s.x, s.y, s.z))).mult(x3dom.fields.SFMatrix4f.scale(
+                    new x3dom.fields.SFVec3f(0.5, 0.5, 0.5)))));
+        children.push(new OctreeNode(ctx, bvhRefiner, (level + 1),
+            nodeTransformation.mult(x3dom.fields.SFMatrix4f.translation(
+                    new x3dom.fields.SFVec3f(s.x, s.y, s.z))).mult(x3dom.fields.SFMatrix4f.scale(
+                    new x3dom.fields.SFVec3f(0.5, 0.5, 0.5)))));
+        children.push(new OctreeNode(ctx, bvhRefiner, (level + 1),
+            nodeTransformation.mult(x3dom.fields.SFMatrix4f.translation(
+                    new x3dom.fields.SFVec3f(-s.x, -s.y, s.z))).mult(x3dom.fields.SFMatrix4f.scale(
+                    new x3dom.fields.SFVec3f(0.5, 0.5, 0.5)))));
+        children.push(new OctreeNode(ctx, bvhRefiner, (level + 1),
+            nodeTransformation.mult(x3dom.fields.SFMatrix4f.translation(
+                    new x3dom.fields.SFVec3f(s.x, -s.y, s.z))).mult(x3dom.fields.SFMatrix4f.scale(
+                    new x3dom.fields.SFVec3f(0.5, 0.5, 0.5)))));
+        children.push(new OctreeNode(ctx, bvhRefiner, (level + 1),
+            nodeTransformation.mult(x3dom.fields.SFMatrix4f.translation(
+                    new x3dom.fields.SFVec3f(-s.x, s.y, -s.z))).mult(x3dom.fields.SFMatrix4f.scale(
+                    new x3dom.fields.SFVec3f(0.5, 0.5, 0.5)))));
+        children.push(new OctreeNode(ctx, bvhRefiner, (level + 1),
+            nodeTransformation.mult(x3dom.fields.SFMatrix4f.translation(
+                    new x3dom.fields.SFVec3f(s.x, s.y, -s.z))).mult(x3dom.fields.SFMatrix4f.scale(
+                    new x3dom.fields.SFVec3f(0.5, 0.5, 0.5)))));
+        children.push(new OctreeNode(ctx, bvhRefiner, (level + 1),
+            nodeTransformation.mult(x3dom.fields.SFMatrix4f.translation(
+                    new x3dom.fields.SFVec3f(-s.x, -s.y, -s.z))).mult(x3dom.fields.SFMatrix4f.scale(
+                    new x3dom.fields.SFVec3f(0.5, 0.5, 0.5)))));
+        children.push(new OctreeNode(ctx, bvhRefiner, (level + 1),
+            nodeTransformation.mult(x3dom.fields.SFMatrix4f.translation(
+                    new x3dom.fields.SFVec3f(s.x, -s.y, -s.z))).mult(x3dom.fields.SFMatrix4f.scale(
+                    new x3dom.fields.SFVec3f(0.5, 0.5, 0.5)))));
+    }
+
+
+
+    /*
+     * Decides to create new children and if the node shoud be drawn or not
+     */
+    this.collectDrawables = function (transform, drawableCollection, singlePath, invalidateCache, planeMask) {
+
+        // definition the actual transformation of the node
+        cullObject.localMatrix = nodeTransformation;
+
+        if ((planeMask = drawableCollection.cull(transform, cullObject, singlePath, planeMask)) > 0) {
+
+            var mat_view = drawableCollection.viewMatrix;
+            var vPos = mat_view.multMatrixPnt(transform.multMatrixPnt(position));
+            var distanceToCamera = Math.sqrt(Math.pow(vPos.x, 2) + Math.pow(vPos.y, 2) + Math.pow(vPos.z, 2));
+
+            // bvhRefiner._vf.factor instead (level * 16)
+            if ((distanceToCamera < Math.pow((bvhRefiner._vf.maxDepth - level), 2) * resizeFac / bvhRefiner._vf.factor)) {
+                if (children.length === 0){
+                    create();
+                }
+                else {
+                    for (var i = 0; i < children.length; i++) {
+                        children[i].collectDrawables(nodeTransformation, drawableCollection, singlePath, invalidateCache, planeMask);
+                    }
+                }
+            }
+            else {
+                shape.collectDrawableObjects(nodeTransformation, drawableCollection, singlePath, invalidateCache, planeMask);
+            }
+        }
+    };
+
+
+
+    /*
+     * Returns the volume of this node
+     */
+    this.getVolume = function() {
+        // TODO; implement correctly, for now just use first box as workaround
+        return shape.getVolume();
+    };
+
+
+
+    // initializes this node directly after creating
+    initialize();
+}
+
+
+
+/*
+ * Defines one 3D node (plane with displacement) of a quadtree that represents
+ * a part (nxn vertices) of the whole mesh.
+ * @param {object} ctx context
+ * @param {x3dom.nodeTypes.BVHRefiner} bvhRefiner root bvhRefiner node
+ * @param {number} level level of the node within the quadtree
+ * @param {number} nodeNumber id of the node within the level
+ * @param {x3dom.fields.SFMatrix4f} nodeTransformation transformation matrix that defines scale and position
+ * @param {number} columnNr column number in the wmts matrix within the level
+ * @param {number} rowNr row number in the wmts matrix within the level
+ * @param {x3dom.nodeTypes.Plane} geometry plane
+ * @returns {QuadtreeNode3D}
+ */
+function QuadtreeNode3D_32bit(ctx, bvhRefiner, level, nodeNumber, nodeTransformation,
+                              columnNr, rowNr, geometry)
+{
+    // array with the maximal four child nodes
+    var children = [];
+    // drawable component of this node
+    var shape = new x3dom.nodeTypes.Shape();
+    // position of the node in world space
+    var position = null;
+    // address of the image for the bvhRefiner surface
+    var imageAddressColor = bvhRefiner._vf.textureUrl + "/" + level + "/" +
+                            columnNr + "/" + rowNr + "." +
+                            (bvhRefiner._vf.textureFormat).toLowerCase();
+    // address of the image for the bvhRefiner height-data
+    var imageAddressHeight = bvhRefiner._vf.elevationUrl + "/" + level + "/" +
+                             columnNr + "/" + rowNr + "." +
+                             (bvhRefiner._vf.elevationFormat).toLowerCase();
+    // address of the image for the bvhRefiner normal-data
+    var imageAddressNormal = bvhRefiner._vf.normalUrl + "/" + level + "/" +
+                             columnNr + "/" + rowNr + "." +
+                             (bvhRefiner._vf.normalFormat).toLowerCase();
+    // true if components are available and renderable
+    var exists = true;
+    // defines the resizing factor
+    var resizeFac = (bvhRefiner._vf.size.x + bvhRefiner._vf.size.y) / 2.0;
+    // object that stores all information to do a frustum culling
+    var cullObject = {};
+
+
+
+    /*
+     * Initializes all nodeTypes that are needed to create the drawable
+     * component for this node
+     */
+    function initialize() {
+
+        // appearance of the drawable component of this node
+        var appearance = new x3dom.nodeTypes.Appearance(ctx);
+        // multiTexture to get heightmap and colormap to gpu
+        var textures = new x3dom.nodeTypes.MultiTexture(ctx);
+        // texture that should represent the surface-data of this node
+        var colorTexture = new x3dom.nodeTypes.ImageTexture(ctx);
+        // texture that should represent the height-data of this node
+        var heightTexture = new x3dom.nodeTypes.ImageTexture(ctx);
+        // texture that should represent the normal-data of this node
+        var normalTexture = new x3dom.nodeTypes.ImageTexture(ctx);
+        // creating the special shader for these nodes
+        var composedShader = new x3dom.nodeTypes.ComposedShader(ctx);
+
+        // definition of the nameSpace of this shape
+        shape._nameSpace = bvhRefiner._nameSpace;
+
+        // calculate the average position of the node
+        position = nodeTransformation.e3();
+
+        // creating the special vertex-shader for bvhRefiner-nodes
+        var vertexShader = new x3dom.nodeTypes.ShaderPart(ctx);
+        vertexShader._vf.type = 'vertex';
+        vertexShader._vf.url[0] = createVertexShader();
+
+        // creating the special fragment-shader for bvhRefiner-nodes
+        var fragmentShader = new x3dom.nodeTypes.ShaderPart(ctx);
+        fragmentShader._vf.type = 'fragment';
+        fragmentShader._vf.url[0] = createFragmentShader();
+
+        // create complete-shader with vertex- and fragment-shader
+        composedShader.addChild(vertexShader, 'parts');
+        composedShader.addChild(fragmentShader, 'parts');
+
+        // create texture-data of this node with url's of the texture data
+        colorTexture._nameSpace = bvhRefiner._nameSpace;
+        colorTexture._vf.url[0] = imageAddressColor;
+        colorTexture._vf.repeatT = false;
+        colorTexture._vf.repeatS = false;
+        colorTexture._vf.generateMipMaps = false;
+        textures.addChild(colorTexture, 'texture');
+        colorTexture.nodeChanged();
+        var colorTextureField = new x3dom.nodeTypes.Field(ctx);
+        colorTextureField._vf.name = 'texColor';
+        colorTextureField._vf.type = 'SFInt32';
+        colorTextureField._vf.value = 0;
+        composedShader.addChild(colorTextureField, 'fields');
+        colorTextureField.nodeChanged();
+
+        // create height-data
+        heightTexture._nameSpace = bvhRefiner._nameSpace;
+        heightTexture._vf.url[0] = imageAddressHeight;
+        heightTexture._vf.repeatT = false;
+        heightTexture._vf.repeatS = false;
+
+        /*heightTexture._cf.textureProperties.node = new x3dom.nodeTypes.TextureProperties(ctx);
+        heightTexture._cf.textureProperties.node._vf.minificationFilter = 'NEAREST';
+        heightTexture._cf.textureProperties.node._vf.magnificationFilter = 'NEAREST';
+        heightTexture._cf.textureProperties.node._vf.generateMipMaps = false;
+        heightTexture._cf.textureProperties.node._vf.boundaryModeS = 'MIRRORED_REPEAT';
+        heightTexture._cf.textureProperties.node._vf.boundaryModeT = 'MIRRORED_REPEAT';
+        heightTexture._cf.textureProperties.node._vf.boundaryModeR = 'MIRRORED_REPEAT';*/
+
+        textures.addChild(heightTexture, 'texture');
+        heightTexture.nodeChanged();
+        var heightTextureField = new x3dom.nodeTypes.Field(ctx);
+        heightTextureField._vf.name = 'texHeight';
+        heightTextureField._vf.type = 'SFInt32';
+        heightTextureField._vf.value = 1;
+        composedShader.addChild(heightTextureField, 'fields');
+        heightTextureField.nodeChanged();
+
+        // create normal-data
+        normalTexture._nameSpace = bvhRefiner._nameSpace;
+        normalTexture._vf.url[0] = imageAddressNormal;
+        normalTexture._vf.repeatT = false;
+        normalTexture._vf.repeatS = false;
+        textures.addChild(normalTexture, 'texture');
+        normalTexture.nodeChanged();
+        var normalTextureField = new x3dom.nodeTypes.Field(ctx);
+        normalTextureField._vf.name = 'texNormal';
+        normalTextureField._vf.type = 'SFInt32';
+        normalTextureField._vf.value = 2;
+        composedShader.addChild(normalTextureField, 'fields');
+        normalTextureField.nodeChanged();
+
+        // transmit maximum elevation value to gpu
+        var maxHeight = new x3dom.nodeTypes.Field(ctx);
+        maxHeight._vf.name = 'maxElevation';
+        maxHeight._vf.type = 'SFFloat';
+        maxHeight._vf.value = bvhRefiner._vf.maxElevation;
+        composedShader.addChild(maxHeight, 'fields');
+        maxHeight.nodeChanged();
+
+        // add textures to the appearence of this node
+        appearance.addChild(textures);
+        textures.nodeChanged();
+        appearance.addChild(composedShader);
+        composedShader.nodeChanged();
+
+        // create shape with geometry and appearance data
+        shape.addChild(appearance);
+        appearance.nodeChanged();
+        shape.addChild(geometry);
+        geometry.nodeChanged();
+
+        // add shape to bvhRefiner object
+        bvhRefiner.addChild(shape);
+        shape.nodeChanged();
+
+        // definition the static properties of cullObject
+        cullObject.boundedNode = shape;
+        cullObject.volume = shape.getVolume();
+        // setting max and min in z-direction to get the complete volume
+        cullObject.volume.max.z = Math.round(bvhRefiner._vf.maxElevation);
+        cullObject.volume.min.z = -cullObject.volume.max.z;
+    }
+
+
+
+    /*
+     * Creates the code for the vertex shader
+     * @returns {String} code of the vertex shader
+     */
+    function createVertexShader() {
+        return "attribute vec3 position;\n" +
+            "attribute vec3 texcoord;\n" +
+            "uniform mat4 modelViewMatrix;\n" +
+            "uniform mat4 modelViewProjectionMatrix;\n" +
+            "uniform sampler2D texColor;\n" +
+            "uniform sampler2D texHeight;\n" +
+            "uniform float maxElevation;\n" +
+            "uniform sampler2D texNormal;\n" +
+            "varying vec2 texC;\n" +
+            "varying vec3 vLight;\n" +
+            "const float shininess = 32.0;\n" +
+            "\n" +
+            "void main(void) {\n" +
+            "    vec3 uLightPosition = vec3(160.0, -9346.0, 4806.0);\n" +
+            "    vec4 colr = texture2D(texColor, vec2(texcoord[0], 1.0-texcoord[1]));\n" +
+            "    vec3 uAmbientMaterial = vec3(1.0, 1.0, 0.9);" +
+            "    vec3 uAmbientLight = vec3(0.5, 0.5, 0.5);" +
+            "    vec3 uDiffuseMaterial = vec3(0.7, 0.7, 0.7);" +
+            "    vec3 uDiffuseLight = vec3(1.0, 1.0, 1.0);" +
+            "    vec4 vertexPositionEye4 = modelViewMatrix * vec4(position, 1.0);" +
+            "    vec3 vertexPositionEye3 = vec3((modelViewMatrix * vec4(vertexPositionEye4.xyz, 1.0)).xyz);" +
+            "    vec3 vectorToLightSource = normalize(uLightPosition - vertexPositionEye3);" +
+            "    vec4 height = texture2D(texHeight, vec2(texcoord[0], 1.0 - texcoord[1]));\n" +
+            "    vec4 normalEye = 2.0 * texture2D(texNormal, vec2(texcoord[0], 1.0-texcoord[1])) - 1.0;\n" +
+            "    float diffuseLightWeighting = max(dot(normalEye.xyz, vectorToLightSource), 0.0);" +
+            "    texC = vec2(texcoord[0], 1.0-texcoord[1]);\n" +
+            "    vec3 diffuseReflectance = uDiffuseMaterial * uDiffuseLight * diffuseLightWeighting;" +
+            "    vec3 uSpecularMaterial = vec3(0.0, 0.0, 0.0);" +
+            "    vec3 uSpecularLight = vec3(1.0, 1.0, 1.0);" +
+            "    vec3 reflectionVector = normalize(reflect(-vectorToLightSource, normalEye.xyz));" +
+            "    vec3 viewVectorEye = -normalize(vertexPositionEye3);" +
+            "    float rdotv = max(dot(reflectionVector, viewVectorEye), 0.0);" +
+            "    float specularLightWeight = pow(rdotv, shininess);" +
+            "    vec3 specularReflection = uSpecularMaterial * uSpecularLight * specularLightWeight;" +
+            "    vLight = vec4(uAmbientMaterial * uAmbientLight + diffuseReflectance + specularReflection, 1.0).xyz;" +
+            "    gl_Position = modelViewProjectionMatrix * vec4(position.xy, ((height.g * 256.0)+height.b) * maxElevation, 1.0);\n" +
+            "}\n";
+    }
+
+
+
+    /*
+     * Creates the code for the fragment shader
+     * @returns {String} code of the fragment shader
+     */
+    function createFragmentShader() {
+        return "#ifdef GL_ES\n" +
+            "precision highp float;\n" +
+            "#endif\n" +
+            "uniform sampler2D texColor;\n" +
+            "uniform sampler2D texNormal;\n" +
+            "varying vec2 texC;\n" +
+            "varying vec3 vLight;\n" +
+            "\n" +
+            "\n" +
+            "void main(void) {\n" +
+            "    vec4 normal = 2.0 * texture2D(texNormal, texC) - 1.0;\n" +
+            "    vec4 colr = texture2D(texColor, texC);\n" +
+            "    float coler = ((colr.g * 256.0)+colr.b);" +
+            "    gl_FragColor = vec4(vLight * coler, 1.0);\n" +
+            "}\n";
+    }
+
+
+
+    /*
+     * Creates the four children
+     */
+    function create() {
+
+        // calculation of children number nodeNumber within their level
+        var deltaR = Math.sqrt(Math.pow(4, level));
+        var deltaR1 = Math.sqrt(Math.pow(4, level + 1));
+        var lt = Math.floor(nodeNumber / deltaR) * 4 * deltaR +
+                           (nodeNumber % deltaR) * 2;
+        var rt = lt + 1;
+        var lb = lt + deltaR1;
+        var rb = lb + 1;
+
+        // calculation of the scaling factor
+        var s = (bvhRefiner._vf.size).multiply(0.25);
+
+        // creation of all children
+        children.push(new QuadtreeNode3D_32bit(ctx, bvhRefiner, (level + 1), lt,
+            nodeTransformation.mult(x3dom.fields.SFMatrix4f.translation(
+                    new x3dom.fields.SFVec3f(-s.x, s.y, 0.0))).mult(x3dom.fields.SFMatrix4f.scale(
+                    new x3dom.fields.SFVec3f(0.5, 0.5, 1.0))), (columnNr * 2), (rowNr * 2), geometry));
+        children.push(new QuadtreeNode3D_32bit(ctx, bvhRefiner, (level + 1), rt,
+            nodeTransformation.mult(x3dom.fields.SFMatrix4f.translation(
+                    new x3dom.fields.SFVec3f(s.x, s.y, 0.0))).mult(x3dom.fields.SFMatrix4f.scale(
+                    new x3dom.fields.SFVec3f(0.5, 0.5, 1.0))), (columnNr * 2 + 1), (rowNr * 2), geometry));
+        children.push(new QuadtreeNode3D_32bit(ctx, bvhRefiner, (level + 1), lb,
+            nodeTransformation.mult(x3dom.fields.SFMatrix4f.translation(
+                    new x3dom.fields.SFVec3f(-s.x, -s.y, 0.0))).mult(x3dom.fields.SFMatrix4f.scale(
+                    new x3dom.fields.SFVec3f(0.5, 0.5, 1.0))), (columnNr * 2), (rowNr * 2 + 1), geometry));
+        children.push(new QuadtreeNode3D_32bit(ctx, bvhRefiner, (level + 1), rb,
+            nodeTransformation.mult(x3dom.fields.SFMatrix4f.translation(
+                    new x3dom.fields.SFVec3f(s.x, -s.y, 0.0))).mult(x3dom.fields.SFMatrix4f.scale(
+                    new x3dom.fields.SFVec3f(0.5, 0.5, 1.0))), (columnNr * 2 + 1), (rowNr * 2 + 1), geometry));
+    }
+
+
+
+    /*
+     * Decides to create new children and if the node shoud be drawn or not
+     */
+    this.collectDrawables = function (transform, drawableCollection, singlePath, invalidateCache, planeMask) {
+
+        // definition the actual transformation of the node
+        cullObject.localMatrix = nodeTransformation;
+
+        if (exists && (planeMask = drawableCollection.cull(transform, cullObject, singlePath, planeMask)) > 0) {
+            var mat_view = drawableCollection.viewMatrix;
+            var vPos = mat_view.multMatrixPnt(transform.multMatrixPnt(position));
+            var distanceToCamera = Math.sqrt(Math.pow(vPos.x, 2) + Math.pow(vPos.y, 2) + Math.pow(vPos.z, 2));
+            if ((distanceToCamera < Math.pow((bvhRefiner._vf.maxDepth - level), 2) * resizeFac / bvhRefiner._vf.factor)) {
+                if (children.length === 0 && bvhRefiner.createChildren === 0) {
+                    bvhRefiner.createChildren++;
+                    create();
+                    shape.collectDrawableObjects(nodeTransformation, drawableCollection, singlePath, invalidateCache, planeMask);
+                }
+                else if (children.length === 0 && bvhRefiner.createChildren > 0) {
+                    shape.collectDrawableObjects(nodeTransformation, drawableCollection, singlePath, invalidateCache, planeMask);
+                }
+                else {
+                    for (var i = 0; i < children.length; i++) {
+                        children[i].collectDrawables(nodeTransformation, drawableCollection, singlePath, invalidateCache, planeMask);
+                    }
+                }
+            }
+            else {
+                shape.collectDrawableObjects(nodeTransformation, drawableCollection, singlePath, invalidateCache, planeMask);
+            }
+        }
+    };
+
+
+    /*
+     * Returns the volume of this node
+     */
+    this.getVolume = function() {
+        // TODO; implement correctly, for now just use first shape as workaround
+        return shape.getVolume();
+    };
+
+
+    // initializes this node directly after creating
+    initialize();
+}
+
+/*
+ * X3DOM JavaScript Library
+ * http://www.x3dom.org
+ *
+ * (C)2009 Fraunhofer IGD, Darmstadt, Germany
+ * Dual licensed under the MIT and GPL
+ *
+ * Based on code originally provided by
+ * Philip Taylor: http://philip.html5.org
+ */
+
+
+/* ### Snout ### */
+x3dom.registerNodeType(
+    "Snout",
+    "Geometry3D",
+    defineClass(x3dom.nodeTypes.X3DSpatialGeometryNode,
+        function (ctx) {
+            x3dom.nodeTypes.Snout.superClass.call(this, ctx);
+
+            this.addField_SFFloat(ctx, 'dbottom', 1.0); // Diameter of bottom surface
+            this.addField_SFFloat(ctx, 'dtop', 0.5);    // Diameter of top surface
+            this.addField_SFFloat(ctx, 'height', 1.0);  // Perpendicular distance between surfaces
+            this.addField_SFFloat(ctx, 'xoff', 0.25);   // Displacement of axes along X-axis
+            this.addField_SFFloat(ctx, 'yoff', 0.25);   // Displacement of axes along Y-axis
+            this.addField_SFBool(ctx, 'bottom', true);
+            this.addField_SFBool(ctx, 'top', true);
+            this.addField_SFFloat(ctx, 'subdivision', 32);
+
+            this.rebuildGeometry();
+        },
+        {
+            rebuildGeometry: function()
+            {
+                this._mesh._positions[0] = [];
+                this._mesh._normals[0]   = [];
+                this._mesh._texCoords[0] = [];
+                this._mesh._indices[0]   = [];
+
+                var bottomRadius = this._vf.dbottom / 2, height = this._vf.height;
+                var topRadius = this._vf.dtop / 2, sides = this._vf.subdivision;
+
+                var beta, x, z;
+                var delta = 2.0 * Math.PI / sides;
+
+                var incl = (bottomRadius - topRadius) / height;
+                var nlen = 1.0 / Math.sqrt(1.0 + incl * incl);
+
+                var j = 0, k = 0;
+                var h, base;
+
+                if (height > 0) {
+                    var px = 0, pz = 0;
+
+                    for (j = 0, k = 0; j <= sides; j++) {
+                        beta = j * delta;
+                        x = Math.sin(beta);
+                        z = -Math.cos(beta);
+
+                        if (topRadius > x3dom.fields.Eps) {
+                            px = x * topRadius + this._vf.xoff;
+                            pz = z * topRadius + this._vf.yoff;
+                        }
+
+                        this._mesh._positions[0].push(px, height / 2, pz);
+                        this._mesh._normals[0].push(x / nlen, incl / nlen, z / nlen);
+                        this._mesh._texCoords[0].push(1.0 - j / sides, 1);
+
+                        this._mesh._positions[0].push(x * bottomRadius, -height / 2, z * bottomRadius);
+                        this._mesh._normals[0].push(x / nlen, incl / nlen, z / nlen);
+                        this._mesh._texCoords[0].push(1.0 - j / sides, 0);
+
+                        if (j > 0) {
+                            this._mesh._indices[0].push(k    );
+                            this._mesh._indices[0].push(k + 2);
+                            this._mesh._indices[0].push(k + 1);
+
+                            this._mesh._indices[0].push(k + 1);
+                            this._mesh._indices[0].push(k + 2);
+                            this._mesh._indices[0].push(k + 3);
+
+                            k += 2;
+                        }
+                    }
+                }
+
+                if (bottomRadius > 0 && this._vf.bottom) {
+                    base = this._mesh._positions[0].length / 3;
+
+                    for (j = sides - 1; j >= 0; j--) {
+                        beta = j * delta;
+                        x = bottomRadius * Math.sin(beta);
+                        z = -bottomRadius * Math.cos(beta);
+
+                        this._mesh._positions[0].push(x, -height / 2, z);
+                        this._mesh._normals[0].push(0, -1, 0);
+                        this._mesh._texCoords[0].push(x / bottomRadius / 2 + 0.5, z / bottomRadius / 2 + 0.5);
+                    }
+
+                    h = base + 1;
+
+                    for (j = 2; j < sides; j++) {
+                        this._mesh._indices[0].push(h);
+                        this._mesh._indices[0].push(base);
+
+                        h = base + j;
+                        this._mesh._indices[0].push(h);
+                    }
+                }
+
+                if (topRadius > x3dom.fields.Eps && this._vf.top) {
+                    base = this._mesh._positions[0].length / 3;
+
+                    for (j = sides - 1; j >= 0; j--) {
+                        beta = j * delta;
+                        x =  topRadius * Math.sin(beta);
+                        z = -topRadius * Math.cos(beta);
+
+                        this._mesh._positions[0].push(x + this._vf.xoff, height / 2, z + this._vf.yoff);
+                        this._mesh._normals[0].push(0, 1, 0);
+                        this._mesh._texCoords[0].push(x / topRadius / 2 + 0.5, 1.0 - z / topRadius / 2 + 0.5);
+                    }
+
+                    h = base + 1;
+
+                    for (j = 2; j < sides; j++) {
+                        this._mesh._indices[0].push(base);
+                        this._mesh._indices[0].push(h);
+
+                        h = base + j;
+                        this._mesh._indices[0].push(h);
+                    }
+                }
+
+                this.invalidateVolume();
+                this._mesh._numFaces = this._mesh._indices[0].length / 3;
+                this._mesh._numCoords = this._mesh._positions[0].length / 3;
+            },
+
+            fieldChanged: function (fieldName)
+            {
+                if (fieldName == "dtop" || fieldName == "dbottom" ||
+                    fieldName == "height" || fieldName == "subdivision" ||
+                    fieldName == "xoff" || fieldName == "yoff" ||
+                    fieldName == "bottom" || fieldName == "top")
+                {
+                    this.rebuildGeometry();
+
+                    Array.forEach(this._parentNodes, function (node) {
+                        node.setAllDirty();
+                        node.invalidateVolume();
+                    });
+                }
+            }
+        }
+    )
+);
+
+/* ### Dish ### */
+x3dom.registerNodeType(
+    "Dish",
+    "Geometry3D",
+    defineClass(x3dom.nodeTypes.X3DSpatialGeometryNode,
+        function (ctx) {
+            x3dom.nodeTypes.Dish.superClass.call(this, ctx);
+
+            this.addField_SFFloat(ctx, 'diameter', 2); 	//Diameter of base
+            this.addField_SFFloat(ctx, 'height', 1);	//Maximum height of dished surface above base (section if < r)
+            this.addField_SFFloat(ctx, 'radius', this._vf.diameter / 2);  //Third semi-principal axes of ellipsoid
+            this.addField_SFBool(ctx, 'bottom', true);
+            this.addField_SFVec2f(ctx, 'subdivision', 24, 24);
+
+            this.rebuildGeometry();
+        },
+        {
+            rebuildGeometry: function()
+            {
+                this._mesh._positions[0] = [];
+                this._mesh._normals[0]   = [];
+                this._mesh._texCoords[0] = [];
+                this._mesh._indices[0]   = [];
+
+                var twoPi = Math.PI * 2, halfPi = Math.PI / 2;
+                var halfDia = this._vf.diameter / 2;
+
+                // If r is 0 or half of diameter, treat as section of sphere, else half of ellipsoid
+                var r = this._vf.radius;
+                r = (r == 0 || Math.abs(halfDia - r) <= x3dom.fields.Eps) ? halfDia : r;
+
+                // height defines sectional part taken from half of ellipsoid (sphere if r==halfDia)
+                var h = Math.min(this._vf.height, r);
+                var offset = r - h;
+
+                var a = halfDia;    // 1st semi-principal axes along x
+                var b = r;          // 2nd semi-principal axes along y
+                var c = halfDia;    // 3rd semi-principal axes along z
+
+                var latitudeBands = this._vf.subdivision.x, longitudeBands = this._vf.subdivision.y;
+                var latNumber, longNumber;
+
+                var segTheta = halfPi - Math.asin(1 - h / r);
+                var segL = Math.ceil(latitudeBands / halfPi * segTheta);
+
+                var theta, sinTheta, cosTheta;
+                var phi, sinPhi, cosPhi;
+                var x, y, z, u, v;
+                var tmpPosArr = [], tmpTcArr = [];
+
+                for (latNumber = 0; latNumber <= latitudeBands; latNumber++) {
+                    if (segL == latNumber) {
+                        theta = segTheta;
+                    }
+                    else {
+                        theta = (latNumber * halfPi) / latitudeBands;
+                    }
+                    sinTheta = Math.sin(theta);
+                    cosTheta = Math.cos(theta);
+
+                    for (longNumber = 0; longNumber <= longitudeBands; longNumber++) {
+                        phi = (longNumber * twoPi) / longitudeBands;
+                        sinPhi = Math.sin(phi);
+                        cosPhi = Math.cos(phi);
+
+                        x = a * (-cosPhi * sinTheta);
+                        y = b *            cosTheta;
+                        z = c * (-sinPhi * sinTheta);
+
+                        u = 0.25 - (longNumber / longitudeBands);
+                        v = latNumber / latitudeBands;
+
+                        this._mesh._positions[0].push(x, y - offset, z);
+                        this._mesh._texCoords[0].push(u, v);
+                        this._mesh._normals[0].push(x/(a*a), y/(b*b), z/(c*c));
+
+                        if ((latNumber == latitudeBands) || (segL == latNumber)) {
+                            tmpPosArr.push(x, y - offset, z);
+                            tmpTcArr.push(u, v);
+                        }
+                    }
+
+                    if (segL == latNumber)
+                        break;
+                }
+
+                for (latNumber = 0; latNumber < latitudeBands; latNumber++) {
+                    if (segL == latNumber)
+                        break;
+
+                    for (longNumber = 0; longNumber < longitudeBands; longNumber++) {
+                        var first = (latNumber * (longitudeBands + 1)) + longNumber;
+                        var second = first + longitudeBands + 1;
+
+                        this._mesh._indices[0].push(first + 1);
+                        this._mesh._indices[0].push(second);
+                        this._mesh._indices[0].push(first);
+
+                        this._mesh._indices[0].push(first + 1);
+                        this._mesh._indices[0].push(second + 1);
+                        this._mesh._indices[0].push(second);
+                    }
+                }
+
+                if (this._vf.bottom)
+                {
+                    var origPos = this._mesh._positions[0].length / 3;
+                    var t = origPos + 1;
+
+                    for (var i=0, m=tmpPosArr.length/3; i<m; i++) {
+                        var j = 3 * i;
+                        this._mesh._positions[0].push(tmpPosArr[j  ]);
+                        this._mesh._positions[0].push(tmpPosArr[j+1]);
+                        this._mesh._positions[0].push(tmpPosArr[j+2]);
+                        j = 2 * i;
+                        this._mesh._texCoords[0].push(tmpTcArr[j  ]);
+                        this._mesh._texCoords[0].push(tmpTcArr[j+1]);
+                        this._mesh._normals[0].push(0, -1, 0);
+
+                        if (i >= 2) {
+                            this._mesh._indices[0].push(origPos);
+                            this._mesh._indices[0].push(t);
+
+                            t = origPos + i;
+                            this._mesh._indices[0].push(t);
+                        }
+                    }
+                }
+
+                this.invalidateVolume();
+                this._mesh._numFaces = this._mesh._indices[0].length / 3;
+                this._mesh._numCoords = this._mesh._positions[0].length / 3;
+            },
+
+            fieldChanged: function(fieldName)
+            {
+                 if (fieldName == "radius" || fieldName == "height" || fieldName == "diameter" ||
+                     fieldName == "subdivision" || fieldName == "bottom")
+                 {
+                     this.rebuildGeometry();
+
+                     Array.forEach(this._parentNodes, function (node) {
+                         node.setAllDirty();
+                         node.invalidateVolume();
+                     });
+                }
+            }
+        }
+    )
+);
+
+/* ### Pyramid ### */
+x3dom.registerNodeType(
+    "Pyramid",
+    "Geometry3D",
+    defineClass(x3dom.nodeTypes.X3DSpatialGeometryNode,
+        function (ctx) {
+            x3dom.nodeTypes.Pyramid.superClass.call(this, ctx);
+
+            this.addField_SFFloat(ctx, 'xbottom', 1);	//Dimension of bottom parallel to X-axis
+            this.addField_SFFloat(ctx, 'ybottom', 1);	//Dimension of bottom parallel to Y-axis
+            this.addField_SFFloat(ctx, 'xtop', 0.5);		//Dimension of top parallel to X-axis
+            this.addField_SFFloat(ctx, 'ytop', 0.5);		//Dimension of top parallel to Y-axis
+            this.addField_SFFloat(ctx, 'height', 1);	//Height between top and bottom surface
+            this.addField_SFFloat(ctx, 'xoff', 0.25);		//Displacement of axes along X-axis
+            this.addField_SFFloat(ctx, 'yoff', 0.25);		//Displacement of axes along Y-axis
+
+            var xTop = this._vf.xtop / 2;
+            var yTop = this._vf.ytop / 2;
+            var xBot = this._vf.xbottom / 2;
+            var yBot = this._vf.ybottom / 2;
+            var xOff = this._vf.xoff;
+            var yOff = this._vf.yoff;
+            var sy = this._vf.height / 2;
+
+            this._mesh._positions[0] = [
+                -xBot,       -sy, -yBot,        -xTop + xOff, sy, -yTop + yOff,  xTop + xOff, sy, -yTop + yOff,  xBot,       -sy, -yBot,
+                -xBot,       -sy,  yBot,        -xTop + xOff, sy,  yTop + yOff,  xTop + xOff, sy,  yTop + yOff,  xBot,       -sy,  yBot,
+                -xBot,       -sy, -yBot,        -xBot,       -sy,  yBot,        -xTop + xOff, sy,  yTop + yOff, -xTop + xOff, sy, -yTop + yOff,
+                 xBot,       -sy, -yBot,         xBot,       -sy,  yBot,         xTop + xOff, sy,  yTop + yOff,  xTop + xOff, sy, -yTop + yOff,
+                -xTop + xOff, sy, -yTop + yOff, -xTop + xOff, sy,  yTop + yOff,  xTop + xOff, sy,  yTop + yOff,  xTop + xOff, sy, -yTop + yOff,
+                -xBot,       -sy, -yBot,        -xBot,       -sy,  yBot,         xBot,       -sy,  yBot,         xBot,       -sy, -yBot
+            ];
+            this._mesh._texCoords[0] = [
+                1, 0, 1, 1, 0, 1, 0, 0,
+                0, 0, 0, 1, 1, 1, 1, 0,
+                0, 0, 1, 0, 1, 1, 0, 1,
+                1, 0, 0, 0, 0, 1, 1, 1,
+                0, 1, 0, 0, 1, 0, 1, 1,
+                0, 0, 0, 1, 1, 1, 1, 0
+            ];
+            this._mesh._indices[0] = [
+                0, 1, 2, 2, 3, 0,
+                6, 5, 4, 4, 7, 6,
+                8, 9, 10, 10, 11, 8,
+                12, 15, 14, 14, 13, 12,
+                16, 17, 18, 18, 19, 16,
+                20, 23, 22, 22, 21, 20
+            ];
+
+            // attention, we share per side, therefore creaseAngle > 0
+            this._mesh.calcNormals(Math.PI, this._vf.ccw);
+
+            this._mesh._invalidate = true;
+            this._mesh._numFaces = 12;
+            this._mesh._numCoords = 24;
+        },
+        {
+            fieldChanged: function(fieldName)
+            {
+                if (fieldName == "xbottom" || fieldName == "ybottom" ||
+                    fieldName == "xtop" || fieldName == "ytop" ||
+                    fieldName == "xoff" || fieldName == "yoff" || fieldName == "height")
+                {
+                    var xTop = this._vf.xtop / 2;
+                    var yTop = this._vf.ytop / 2;
+                    var xBot = this._vf.xbottom / 2;
+                    var yBot = this._vf.ybottom / 2;
+                    var xOff = this._vf.xoff;
+                    var yOff = this._vf.yoff;
+                    var sy = this._vf.height / 2;
+
+                    this._mesh._positions[0] = [
+                        -xBot,       -sy, -yBot,        -xTop + xOff, sy, -yTop + yOff,  xTop + xOff, sy, -yTop + yOff,  xBot,       -sy, -yBot,
+                        -xBot,       -sy,  yBot,        -xTop + xOff, sy,  yTop + yOff,  xTop + xOff, sy,  yTop + yOff,  xBot,       -sy,  yBot,
+                        -xBot,       -sy, -yBot,        -xBot,       -sy,  yBot,        -xTop + xOff, sy,  yTop + yOff, -xTop + xOff, sy, -yTop + yOff,
+                         xBot,       -sy, -yBot,         xBot,       -sy,  yBot,         xTop + xOff, sy,  yTop + yOff,  xTop + xOff, sy, -yTop + yOff,
+                        -xTop + xOff, sy, -yTop + yOff, -xTop + xOff, sy,  yTop + yOff,  xTop + xOff, sy,  yTop + yOff,  xTop + xOff, sy, -yTop + yOff,
+                        -xBot,       -sy, -yBot,        -xBot,       -sy,  yBot,         xBot,       -sy,  yBot,         xBot,       -sy, -yBot
+                    ];
+
+                    this._mesh._normals[0] = [];
+                    this._mesh.calcNormals(Math.PI, this._vf.ccw);
+
+                    this.invalidateVolume();
+
+                    Array.forEach(this._parentNodes, function (node) {
+                        node.setAllDirty();
+                        node.invalidateVolume();
+                    });
+                }
+            }
+        }
+    )
+);
+
+/* ### RectangularTorus ### */
+x3dom.registerNodeType(
+    "RectangularTorus",
+    "Geometry3D",
+    defineClass(x3dom.nodeTypes.X3DSpatialGeometryNode,
+        function (ctx) {
+            x3dom.nodeTypes.RectangularTorus.superClass.call(this, ctx);
+
+            this.addField_SFFloat(ctx, 'innerRadius', 0.5); //Inside radius
+            this.addField_SFFloat(ctx, 'outerRadius', 1);	//Outside radius
+            this.addField_SFFloat(ctx, 'height', 1);	    //Height of rectangular section
+            this.addField_SFFloat(ctx, 'angle', 2 * Math.PI);	//Subtended angle
+            this.addField_SFBool(ctx, 'caps', true);        //Show side caps
+            this.addField_SFFloat(ctx, 'subdivision', 32);
+
+            this._origCCW = this._vf.ccw;
+
+            this.rebuildGeometry();
+        },
+        {
+            rebuildGeometry: function()
+            {
+                this._mesh._positions[0] = [];
+                this._mesh._normals[0]   = [];
+                this._mesh._texCoords[0] = [];
+                this._mesh._indices[0]   = [];
+
+                var twoPi = 2.0 * Math.PI;
+
+                this._vf.ccw = !this._origCCW;
+
+                // assure that angle in [0, 2 * PI]
+                if (this._vf.angle < 0)
+                    this._vf.angle = 0;
+                else if (this._vf.angle > twoPi)
+                    this._vf.angle = twoPi;
+
+                // assure that innerRadius < outerRadius
+                if (this._vf.innerRadius > this._vf.outerRadius)
+                {
+                    var tmp = this._vf.innerRadius;
+                    this._vf.innerRadius = this._vf.outerRadius;
+                    this._vf.outerRadius = tmp;
+                }
+
+                var innerRadius = this._vf.innerRadius;
+                var outerRadius = this._vf.outerRadius;
+                var height = this._vf.height / 2;
+                var angle = this._vf.angle;
+                var sides = this._vf.subdivision;
+
+                var beta, x, z, k, j, nx, nz;
+                var delta = angle / sides;
+
+                //Outer Side
+                for (j=0, k=0; j<=sides; j++)
+                {
+                    beta = j * delta;
+                    nx =  Math.cos(beta);
+                    nz = -Math.sin(beta);
+
+                    x = outerRadius * nx;
+                    z = outerRadius * nz;
+
+                    this._mesh._positions[0].push(x, -height, z);
+                    this._mesh._normals[0].push(nx, 0, nz);
+
+                    this._mesh._positions[0].push(x, height, z);
+                    this._mesh._normals[0].push(nx, 0, nz);
+
+                    if (j > 0)
+                    {
+                        this._mesh._indices[0].push(k    );
+                        this._mesh._indices[0].push(k + 1);
+                        this._mesh._indices[0].push(k + 2);
+
+                        this._mesh._indices[0].push(k + 2);
+                        this._mesh._indices[0].push(k + 1);
+                        this._mesh._indices[0].push(k + 3);
+
+                        k += 2;
+                    }
+                }
+
+                //Inner Side
+                for (j=0, k=k+2; j<=sides; j++)
+                {
+                    beta = j * delta;
+                    nx =  Math.cos(beta);
+                    nz = -Math.sin(beta);
+
+                    x = innerRadius * nx;
+                    z = innerRadius * nz;
+
+                    this._mesh._positions[0].push(x, -height, z);
+                    this._mesh._normals[0].push(-nx, 0, -nz);
+
+                    this._mesh._positions[0].push(x, height, z);
+                    this._mesh._normals[0].push(-nx, 0, -nz);
+
+                    if (j > 0)
+                    {
+                        this._mesh._indices[0].push(k + 2);
+                        this._mesh._indices[0].push(k + 1);
+                        this._mesh._indices[0].push(k    );
+
+                        this._mesh._indices[0].push(k + 3);
+                        this._mesh._indices[0].push(k + 1);
+                        this._mesh._indices[0].push(k + 2);
+
+                        k += 2;
+                    }
+                }
+
+                //Top Side
+                for (j=0, k=k+2; j<=sides; j++)
+                {
+                    beta = j * delta;
+                    nx =  Math.cos(beta);
+                    nz = -Math.sin(beta);
+
+                    x = outerRadius * nx;
+                    z = outerRadius * nz;
+
+                    this._mesh._positions[0].push(x, height, z);
+                    this._mesh._normals[0].push(0, 1, 0);
+
+                    x = innerRadius * nx;
+                    z = innerRadius * nz;
+
+                    this._mesh._positions[0].push(x, height, z);
+                    this._mesh._normals[0].push(0, 1, 0);
+
+                    if (j > 0)
+                    {
+                        this._mesh._indices[0].push(k    );
+                        this._mesh._indices[0].push(k + 1);
+                        this._mesh._indices[0].push(k + 2);
+
+                        this._mesh._indices[0].push(k + 2);
+                        this._mesh._indices[0].push(k + 1);
+                        this._mesh._indices[0].push(k + 3);
+
+                        k += 2;
+                    }
+                }
+
+                //Bottom Side
+                for (j=0, k=k+2; j<=sides; j++)
+                {
+                    beta = j * delta;
+                    nx =  Math.cos(beta);
+                    nz = -Math.sin(beta);
+
+                    x = outerRadius * nx;
+                    z = outerRadius * nz;
+
+                    this._mesh._positions[0].push(x, -height, z);
+                    this._mesh._normals[0].push(0, -1, 0);
+
+                    x = innerRadius * nx;
+                    z = innerRadius * nz;
+
+                    this._mesh._positions[0].push(x, -height, z);
+                    this._mesh._normals[0].push(0, -1, 0);
+
+                    if (j > 0)
+                    {
+                        this._mesh._indices[0].push(k + 2);
+                        this._mesh._indices[0].push(k + 1);
+                        this._mesh._indices[0].push(k    );
+
+                        this._mesh._indices[0].push(k + 3);
+                        this._mesh._indices[0].push(k + 1);
+                        this._mesh._indices[0].push(k + 2);
+
+                        k += 2;
+                    }
+                }
+
+                //Create Caps
+                if (angle < twoPi && this._vf.caps == true)
+                {
+                    //First Cap
+                    k += 2;
+
+                    x = outerRadius;
+                    z = 0;
+
+                    this._mesh._positions[0].push(x, height, z);
+                    this._mesh._normals[0].push(0, 0, 1);
+                    this._mesh._positions[0].push(x, -height, z);
+                    this._mesh._normals[0].push(0, 0, 1);
+
+                    x = innerRadius;
+                    z = 0;
+
+                    this._mesh._positions[0].push(x, height, z);
+                    this._mesh._normals[0].push(0, 0, 1);
+                    this._mesh._positions[0].push(x, -height, z);
+                    this._mesh._normals[0].push(0, 0, 1);
+
+                    this._mesh._indices[0].push(k    );
+                    this._mesh._indices[0].push(k + 1);
+                    this._mesh._indices[0].push(k + 2);
+
+                    this._mesh._indices[0].push(k + 2);
+                    this._mesh._indices[0].push(k + 1);
+                    this._mesh._indices[0].push(k + 3);
+
+                    //Second Cap
+                    k+=4;
+
+                    nx =  Math.cos(angle);
+                    nz = -Math.sin(angle);
+
+                    x = outerRadius * nx;
+                    z = outerRadius * nz;
+
+                    this._mesh._positions[0].push(x, height, z);
+                    this._mesh._normals[0].push(nz, 0, -nx);
+                    this._mesh._positions[0].push(x, -height, z);
+                    this._mesh._normals[0].push(nz, 0, -nx);
+
+                    x = innerRadius * nx;
+                    z = innerRadius * nz;
+
+                    this._mesh._positions[0].push(x, height, z);
+                    this._mesh._normals[0].push(nz, 0, -nx);
+                    this._mesh._positions[0].push(x, -height, z);
+                    this._mesh._normals[0].push(nz, 0, -nx);
+
+                    this._mesh._indices[0].push(k + 2);
+                    this._mesh._indices[0].push(k + 1);
+                    this._mesh._indices[0].push(k    );
+
+                    this._mesh._indices[0].push(k + 3);
+                    this._mesh._indices[0].push(k + 1);
+                    this._mesh._indices[0].push(k + 2);
+                }
+
+                this.invalidateVolume();
+                this._mesh._numFaces = this._mesh._indices[0].length / 3;
+                this._mesh._numCoords = this._mesh._positions[0].length / 3;
+            },
+
+            fieldChanged: function(fieldName)
+            {
+                if (fieldName == "innerRadius" || fieldName == "outerRadius" ||
+                    fieldName == "height" || fieldName == "angle" ||
+                    fieldName == "subdivision" || fieldName == "caps")
+                {
+                    this.rebuildGeometry();
+
+                    Array.forEach(this._parentNodes, function (node) {
+                        node.setAllDirty();
+                        node.invalidateVolume();
+                    });
+                }
+            }
+        }
+    )
+);
+
+/* ### SlopedCylinder ### */
+x3dom.registerNodeType(
+    "SlopedCylinder",
+    "Geometry3D",
+    defineClass(x3dom.nodeTypes.X3DSpatialGeometryNode,
+        function (ctx) {
+            x3dom.nodeTypes.SlopedCylinder.superClass.call(this, ctx);
+
+            this.addField_SFFloat(ctx, 'radius', 1.0);
+            this.addField_SFFloat(ctx, 'height', 2.0);
+            this.addField_SFBool(ctx, 'bottom', true);
+            this.addField_SFBool(ctx, 'top', true);
+            this.addField_SFFloat(ctx, 'xtshear', 0.26179);
+            this.addField_SFFloat(ctx, 'ytshear', 0.0);
+            this.addField_SFFloat(ctx, 'xbshear', 0.26179);
+            this.addField_SFFloat(ctx, 'ybshear', 0.0);
+            this.addField_SFFloat(ctx, 'subdivision', 32);
+
+            this.rebuildGeometry();
+        },
+        {
+            rebuildGeometry: function()
+            {
+                this._mesh._positions[0] = [];
+                this._mesh._normals[0]   = [];
+                this._mesh._texCoords[0] = [];
+                this._mesh._indices[0]   = [];
+
+                var topSlopeX = this._vf.xtshear;
+                var topSlopeY = this._vf.ytshear;
+                var botSlopeX = this._vf.xbshear;
+                var botSlopeY = this._vf.ybshear;
+                var sides = this._vf.subdivision;
+
+                var radius = this._vf.radius;
+                var height = this._vf.height / 2;
+
+                var delta = 2.0 * Math.PI / sides;
+                var beta, x, y, z;
+                var j, k;
+
+                for (j=0, k=0; j<=sides; j++)
+                {
+                    beta = j * delta;
+                    x =  Math.sin(beta);
+                    z = -Math.cos(beta);
+
+                    this._mesh._positions[0].push(x * radius, -height + x * botSlopeX + z * botSlopeY, z * radius);
+                    this._mesh._texCoords[0].push(1.0 - j / sides, 0);
+
+                    this._mesh._positions[0].push(x * radius,  height + x * topSlopeX + z * topSlopeY, z * radius);
+                    this._mesh._texCoords[0].push(1.0 - j / sides, 1);
+
+                    if (j > 0)
+                    {
+                        this._mesh._indices[0].push(k    );
+                        this._mesh._indices[0].push(k + 1);
+                        this._mesh._indices[0].push(k + 2);
+
+                        this._mesh._indices[0].push(k + 2);
+                        this._mesh._indices[0].push(k + 1);
+                        this._mesh._indices[0].push(k + 3);
+
+                        k += 2;
+                    }
+                }
+
+                var h, base;
+
+                if (this._vf.top && radius > 0)
+                {
+                    base = this._mesh._positions[0].length / 3;
+
+                    for (j=sides-1; j>=0; j--)
+                    {
+                        k = 6 * j;
+                        x = this._mesh._positions[0][k+3];
+                        y = this._mesh._positions[0][k+4];
+                        z = this._mesh._positions[0][k+5];
+
+                        this._mesh._positions[0].push(x, y, z);
+                        this._mesh._texCoords[0].push(x / 2 + 0.5, -z / 2 + 0.5);
+                    }
+
+                    h = base + 1;
+
+                    for (j=2; j<sides; j++)
+                    {
+                        this._mesh._indices[0].push(base);
+                        this._mesh._indices[0].push(h);
+
+                        h = base + j;
+                        this._mesh._indices[0].push(h);
+                    }
+                }
+
+                if (this._vf.bottom && radius > 0)
+                {
+                    base = this._mesh._positions[0].length / 3;
+
+                    for (j=sides-1; j>=0; j--)
+                    {
+                        k = 6 * j;
+                        x = this._mesh._positions[0][k  ];
+                        y = this._mesh._positions[0][k+1];
+                        z = this._mesh._positions[0][k+2];
+
+                        this._mesh._positions[0].push(x, y, z);
+                        this._mesh._texCoords[0].push(x / 2 + 0.5, z / 2 + 0.5);
+                    }
+
+                    h = base + 1;
+
+                    for (j=2; j<sides; j++)
+                    {
+                        this._mesh._indices[0].push(h);
+                        this._mesh._indices[0].push(base);
+
+                        h = base + j;
+                        this._mesh._indices[0].push(h);
+                    }
+                }
+
+                // calculate normals and adjust them at seam
+                this._mesh.calcNormals(Math.PI, this._vf.ccw);
+
+                var n0b = new x3dom.fields.SFVec3f(this._mesh._normals[0][0],
+                                                   this._mesh._normals[0][1],
+                                                   this._mesh._normals[0][2]);
+                var n0t = new x3dom.fields.SFVec3f(this._mesh._normals[0][3],
+                                                   this._mesh._normals[0][4],
+                                                   this._mesh._normals[0][5]);
+                k = 6 * sides;
+                var n1b = new x3dom.fields.SFVec3f(this._mesh._normals[0][k  ],
+                                                   this._mesh._normals[0][k+1],
+                                                   this._mesh._normals[0][k+2]);
+                var n1t = new x3dom.fields.SFVec3f(this._mesh._normals[0][k+3],
+                                                   this._mesh._normals[0][k+4],
+                                                   this._mesh._normals[0][k+5]);
+
+                var nb = n0b.add(n1b).normalize();
+                var nt = n0t.add(n1t).normalize();
+
+                this._mesh._normals[0][0] = nb.x;
+                this._mesh._normals[0][1] = nb.y;
+                this._mesh._normals[0][2] = nb.z;
+                this._mesh._normals[0][3] = nt.x;
+                this._mesh._normals[0][4] = nt.y;
+                this._mesh._normals[0][5] = nt.z;
+
+                this._mesh._normals[0][k  ] = nb.x;
+                this._mesh._normals[0][k+1] = nb.y;
+                this._mesh._normals[0][k+2] = nb.z;
+                this._mesh._normals[0][k+3] = nt.x;
+                this._mesh._normals[0][k+4] = nt.y;
+                this._mesh._normals[0][k+5] = nt.z;
+
+                this.invalidateVolume();
+                this._mesh._numFaces = this._mesh._indices[0].length / 3;
+                this._mesh._numCoords = this._mesh._positions[0].length / 3;
+            },
+
+            fieldChanged: function(fieldName)
+            {
+                if (fieldName == "xtshear" || fieldName == "ytshear" ||
+                    fieldName == "xbshear" || fieldName == "ybshear" ||
+                    fieldName == "radius" || fieldName == "height" ||
+                    fieldName == "bottom" || fieldName == "top" || fieldName == "subdivision")
+                {
+                    this.rebuildGeometry();
+
+                    Array.forEach(this._parentNodes, function (node) {
+                        node.setAllDirty();
+                        node.invalidateVolume();
+                    });
+                }
+            }
+        }
+    )
+);
+
+/* ### Nozzle ### */
+x3dom.registerNodeType(
+    "Nozzle",
+    "Geometry3D",
+    defineClass(x3dom.nodeTypes.X3DSpatialGeometryNode,
+        function (ctx) {
+            x3dom.nodeTypes.Nozzle.superClass.call(this, ctx);
+
+            this.addField_SFFloat(ctx, 'nozzleHeight', 0.1);
+            this.addField_SFFloat(ctx, 'nozzleRadius', 0.6);
+            this.addField_SFFloat(ctx, 'height', 1.0);
+            this.addField_SFFloat(ctx, 'outerRadius', 0.5);
+            this.addField_SFFloat(ctx, 'innerRadius', 0.4);
+            this.addField_SFFloat(ctx, 'subdivision', 32);
+
+            this.rebuildGeometry();
+        },
+        {
+            rebuildGeometry: function()
+            {
+                this._mesh._positions[0] = [];
+                this._mesh._normals[0]   = [];
+                this._mesh._texCoords[0] = [];
+                this._mesh._indices[0]   = [];
+
+                var twoPi = 2.0 * Math.PI;
+                var sides = this._vf.subdivision;
+
+                var height = this._vf.height;
+                var center = height / 2;
+
+                if (this._vf.innerRadius > this._vf.outerRadius)
+                {
+                    var tmp = this._vf.innerRadius;
+                    this._vf.innerRadius = this._vf.outerRadius;
+                    this._vf.outerRadius = tmp;
+                }
+                var innerRadius = this._vf.innerRadius;
+                var outerRadius = this._vf.outerRadius;
+
+                if (this._vf.nozzleRadius < outerRadius)
+                {
+                    this._vf.nozzleRadius = outerRadius;
+                }
+                var nozzleRadius = this._vf.nozzleRadius;
+
+                if (this._vf.nozzleHeight > height)
+                {
+                    this._vf.nozzleHeight = height;
+                }
+                var nozzleHeight = this._vf.nozzleHeight;
+
+                var beta, delta, x, z, k, j, nx, nz;
+                delta = twoPi / sides;
+
+                //Outer Stem Side
+                for (j=0, k=0; j<=sides; j++)
+                {
+                    beta = j * delta;
+                    nx =  Math.sin(beta);
+                    nz = -Math.cos(beta);
+
+                    x = outerRadius * nx;
+                    z = outerRadius * nz;
+
+                    this._mesh._positions[0].push(x, -center, z);
+                    this._mesh._normals[0].push(nx, 0, nz);
+
+                    this._mesh._positions[0].push(x, (height-nozzleHeight)-center, z);
+                    this._mesh._normals[0].push(nx, 0, nz);
+
+                    if (j > 0)
+                    {
+                        this._mesh._indices[0].push(k    );
+                        this._mesh._indices[0].push(k + 1);
+                        this._mesh._indices[0].push(k + 2);
+
+                        this._mesh._indices[0].push(k + 2);
+                        this._mesh._indices[0].push(k + 1);
+                        this._mesh._indices[0].push(k + 3);
+
+                        k += 2;
+                    }
+                }
+
+                //Inner Stem Side
+                for (j=0, k=k+2; j<=sides; j++)
+                {
+                    beta = j * delta;
+                    nx =  Math.sin(beta);
+                    nz = -Math.cos(beta);
+
+                    x = innerRadius * nx;
+                    z = innerRadius * nz;
+
+                    this._mesh._positions[0].push(x, -center, z);
+                    this._mesh._normals[0].push(-nx, 0, -nz);
+
+                    this._mesh._positions[0].push(x, (height-nozzleHeight)-center, z);
+                    this._mesh._normals[0].push(-nx, 0, -nz);
+
+                    if (j > 0)
+                    {
+                        this._mesh._indices[0].push(k + 2);
+                        this._mesh._indices[0].push(k + 1);
+                        this._mesh._indices[0].push(k    );
+
+                        this._mesh._indices[0].push(k + 3);
+                        this._mesh._indices[0].push(k + 1);
+                        this._mesh._indices[0].push(k + 2);
+
+                        k += 2;
+                    }
+                }
+
+                //Stem Bottom Side
+                for (j=0, k=k+2; j<=sides; j++)
+                {
+                    beta = j * delta;
+                    nx =  Math.sin(beta);
+                    nz = -Math.cos(beta);
+
+                    x = outerRadius * nx;
+                    z = outerRadius * nz;
+
+                    this._mesh._positions[0].push(x, -center, z);
+                    this._mesh._normals[0].push(0, -1, 0);
+
+                    x = innerRadius * nx;
+                    z = innerRadius * nz;
+
+                    this._mesh._positions[0].push(x, -center, z);
+                    this._mesh._normals[0].push(0, -1, 0);
+
+                    if (j > 0)
+                    {
+                        this._mesh._indices[0].push(k + 2);
+                        this._mesh._indices[0].push(k + 1);
+                        this._mesh._indices[0].push(k    );
+
+                        this._mesh._indices[0].push(k + 3);
+                        this._mesh._indices[0].push(k + 1);
+                        this._mesh._indices[0].push(k + 2);
+
+                        k += 2;
+                    }
+                }
+
+                //Outer Nozzle Side
+                for (j=0, k=k+2; j<=sides; j++)
+                {
+                    beta = j * delta;
+                    nx =  Math.sin(beta);
+                    nz = -Math.cos(beta);
+
+                    x = nozzleRadius * nx;
+                    z = nozzleRadius * nz;
+
+                    this._mesh._positions[0].push(x, (height-nozzleHeight)-center, z);
+                    this._mesh._normals[0].push(nx, 0, nz);
+
+                    this._mesh._positions[0].push(x, center, z);
+                    this._mesh._normals[0].push(nx, 0, nz);
+
+                    if (j > 0)
+                    {
+                        this._mesh._indices[0].push(k    );
+                        this._mesh._indices[0].push(k + 1);
+                        this._mesh._indices[0].push(k + 2);
+
+                        this._mesh._indices[0].push(k + 2);
+                        this._mesh._indices[0].push(k + 1);
+                        this._mesh._indices[0].push(k + 3);
+
+                        k += 2;
+                    }
+                }
+
+                //Inner Nozzle Side
+                for (j=0, k=k+2; j<=sides; j++)
+                {
+                    beta = j * delta;
+                    nx =  Math.sin(beta);
+                    nz = -Math.cos(beta);
+
+                    x = innerRadius * nx;
+                    z = innerRadius * nz;
+
+                    this._mesh._positions[0].push(x, (height-nozzleHeight)-center, z);
+                    this._mesh._normals[0].push(-nx, 0, -nz);
+
+                    this._mesh._positions[0].push(x, center, z);
+                    this._mesh._normals[0].push(-nx, 0, -nz);
+
+                    if (j > 0)
+                    {
+                        this._mesh._indices[0].push(k + 2);
+                        this._mesh._indices[0].push(k + 1);
+                        this._mesh._indices[0].push(k    );
+
+                        this._mesh._indices[0].push(k + 3);
+                        this._mesh._indices[0].push(k + 1);
+                        this._mesh._indices[0].push(k + 2);
+
+                        k += 2;
+                    }
+                }
+
+                //Nozzle Bottom Side
+                for (j=0, k=k+2; j<=sides; j++)
+                {
+                    beta = j * delta;
+                    nx =  Math.sin(beta);
+                    nz = -Math.cos(beta);
+
+                    x = nozzleRadius * nx;
+                    z = nozzleRadius * nz;
+
+                    this._mesh._positions[0].push(x, (height-nozzleHeight)-center, z);
+                    this._mesh._normals[0].push(0, -1, 0);
+
+                    x = outerRadius * nx;
+                    z = outerRadius * nz;
+
+                    this._mesh._positions[0].push(x, (height-nozzleHeight)-center, z);
+                    this._mesh._normals[0].push(0, -1, 0);
+
+                    if (j > 0)
+                    {
+                        this._mesh._indices[0].push(k + 2);
+                        this._mesh._indices[0].push(k + 1);
+                        this._mesh._indices[0].push(k    );
+
+                        this._mesh._indices[0].push(k + 3);
+                        this._mesh._indices[0].push(k + 1);
+                        this._mesh._indices[0].push(k + 2);
+
+                        k += 2;
+                    }
+                }
+
+                //Nozzle Top Side
+                for (j=0, k=k+2; j<=sides; j++)
+                {
+                    beta = j * delta;
+                    nx =  Math.sin(beta);
+                    nz = -Math.cos(beta);
+
+                    x = nozzleRadius * nx;
+                    z = nozzleRadius * nz;
+
+                    this._mesh._positions[0].push(x, center, z);
+                    this._mesh._normals[0].push(0, 1, 0);
+
+                    x = innerRadius * nx;
+                    z = innerRadius * nz;
+
+                    this._mesh._positions[0].push(x, center, z);
+                    this._mesh._normals[0].push(0, 1, 0);
+
+                    if (j > 0)
+                    {
+                        this._mesh._indices[0].push(k    );
+                        this._mesh._indices[0].push(k + 1);
+                        this._mesh._indices[0].push(k + 2);
+
+                        this._mesh._indices[0].push(k + 2);
+                        this._mesh._indices[0].push(k + 1);
+                        this._mesh._indices[0].push(k + 3);
+
+                        k += 2;
+                    }
+                }
+
+                this.invalidateVolume();
+                this._mesh._numFaces = this._mesh._indices[0].length / 3;
+                this._mesh._numCoords = this._mesh._positions[0].length / 3;
+            },
+
+            fieldChanged: function(fieldName)
+			{
+                if (fieldName == "nozzleHeight" || fieldName == "nozzleRadius" || fieldName == "height" ||
+                    fieldName == "outerRadius" || fieldName == "innerRadius" || fieldName == "subdivision")
+                {
+                    this.rebuildGeometry();
+
+                    Array.forEach(this._parentNodes, function (node) {
+                        node.setAllDirty();
+                        node.invalidateVolume();
+                    });
+                }
+        	}
+		}
+    )
+);
+
+/* ### SolidOfRevolution ### */
+x3dom.registerNodeType(
+    "SolidOfRevolution",
+    "Geometry3D",
+    defineClass(x3dom.nodeTypes.X3DGeometryNode,
+        function (ctx) {
+            x3dom.nodeTypes.SolidOfRevolution.superClass.call(this, ctx);
+
+            this.addField_SFFloat(ctx, 'creaseAngle', 0);
+            this.addField_MFVec2f(ctx, 'crossSection', []);
+            this.addField_SFFloat(ctx, 'angle', 2*Math.PI);
+            this.addField_SFBool(ctx, 'caps', true);
+            this.addField_SFFloat(ctx, 'subdivision', 32);
+
+            this._origCCW = this._vf.ccw;
+
+            this.rebuildGeometry();
+        },
+        {
+            rebuildGeometry: function()
+            {
+                this._mesh._positions[0] = [];
+                this._mesh._normals[0]   = [];
+                this._mesh._texCoords[0] = [];
+                this._mesh._indices[0]   = [];
+
+                // assure that angle in [-2.Pi, 2.PI]
+                var twoPi = 2.0 * Math.PI;
+                if (this._vf.angle < -twoPi)
+                    this._vf.angle = -twoPi;
+                else if (this._vf.angle > twoPi)
+                    this._vf.angle = twoPi;
+
+                var crossSection = this._vf.crossSection, angle = this._vf.angle, steps = this._vf.subdivision;
+                var i, j, k, l, m, n = crossSection.length;
+
+                if (n < 1) {
+                    x3dom.debug.logWarning("SolidOfRevolution requires crossSection curve.");
+                    return;
+                }
+
+                var loop = (n > 2) ? crossSection[0].equals(crossSection[n-1], x3dom.fields.Eps) : false;
+                var fullRevolution = (twoPi - Math.abs(angle) <= x3dom.fields.Eps);
+
+                var alpha, delta = angle / steps;
+                var positions = [], baseCurve = [];
+
+                // fix wrong face orientation in case of clockwise rotation
+                this._vf.ccw = (angle < 0) ? this._origCCW : !this._origCCW;
+
+                // check if side caps are required
+                if (!loop)
+                {
+                    if (Math.abs(crossSection[n-1].y) > x3dom.fields.Eps) {
+                        crossSection.push(new x3dom.fields.SFVec2f(crossSection[n-1].x, 0));
+                    }
+                    if (Math.abs(crossSection[0].y) > x3dom.fields.Eps) {
+                        crossSection.unshift(new x3dom.fields.SFVec2f(crossSection[0].x, 0));
+                    }
+                    n = crossSection.length;
+                }
+
+                // check curvature, starting from 2nd segment, and adjust base curve
+                var pos = null, lastPos = null, penultimatePos = null;
+                var duplicate = [];    // to be able to sort out duplicates for caps
+
+                for (j=0; j<n; j++)
+                {
+                    if (pos) {
+                        if (lastPos) {
+                            penultimatePos = lastPos;
+                        }
+                        lastPos = pos;
+                    }
+
+                    pos = new x3dom.fields.SFVec3f(crossSection[j].x, 0, crossSection[j].y);
+
+                    if (j >= 2)
+                    {
+                        alpha = pos.subtract(lastPos).normalize();
+                        alpha = alpha.dot(lastPos.subtract(penultimatePos).normalize());
+                        alpha = Math.abs(Math.cos(alpha));
+
+                        if (alpha > this._vf.creaseAngle)
+                        {
+                            baseCurve.push(x3dom.fields.SFVec3f.copy(lastPos));
+                            duplicate.push(true);
+                        }
+                        // TODO; handle case that curve is loop and angle smaller creaseAngle
+                    }
+
+                    baseCurve.push(pos);
+                    duplicate.push(false);
+                }
+
+                n = baseCurve.length;
+
+                // generate body of revolution (with rotation around x-axis)
+                for (i=0, alpha=0; i<=steps; i++, alpha+=delta)
+                {
+                    var mat = x3dom.fields.SFMatrix4f.rotationX(alpha);
+
+                    for (j=0; j<n; j++)
+                    {
+                        pos = mat.multMatrixPnt(baseCurve[j]);
+                        positions.push(pos);
+
+                        this._mesh._positions[0].push(pos.x, pos.y, pos.z);
+
+                        if (i > 0 && j > 0)
+                        {
+                            this._mesh._indices[0].push((i-1)*n+(j-1), (i-1)*n+ j   ,  i   *n+ j   );
+                            this._mesh._indices[0].push( i   *n+ j   ,  i   *n+(j-1), (i-1)*n+(j-1));
+                        }
+                    }
+                }
+
+                if (!fullRevolution && this._vf.caps == true)
+                {
+                    // add first cap
+                    var linklist = new x3dom.DoublyLinkedList();
+                    m = this._mesh._positions[0].length / 3;
+
+                    for (j=0, i=0; j<n; j++)
+                    {
+                        if (!duplicate[j])
+                        {
+                            // Tessellation leads to errors with duplicated vertices if polygon not convex
+                            linklist.appendNode(new x3dom.DoublyLinkedList.ListNode(positions[j], i++));
+
+                            pos = positions[j];
+                            this._mesh._positions[0].push(pos.x, pos.y, pos.z);
+                        }
+                    }
+
+                    var linklist_indices = x3dom.EarClipping.getIndexes(linklist);
+
+                    for (j=linklist_indices.length-1; j>=0; j--)
+                    {
+                        this._mesh._indices[0].push(m + linklist_indices[j]);
+                    }
+
+                    // second cap
+                    m = this._mesh._positions[0].length / 3;
+
+                    for (j=0; j<n; j++)
+                    {
+                        if (!duplicate[j])
+                        {
+                            pos = positions[n * steps + j];
+                            this._mesh._positions[0].push(pos.x, pos.y, pos.z);
+                        }
+                    }
+
+                    for (j=0; j<linklist_indices.length; j++)
+                    {
+                        this._mesh._indices[0].push(m + linklist_indices[j]);
+                    }
+                }
+
+                // calculate and readjust normals if full revolution
+                this._mesh.calcNormals(Math.PI, this._vf.ccw);
+
+                if (fullRevolution)
+                {
+                    m = 3 * n * steps;
+
+                    for (j=0; j<n; j++)
+                    {
+                        k = 3 * j;
+                        this._mesh._normals[0][m+k  ] = this._mesh._normals[0][k  ];
+                        this._mesh._normals[0][m+k+1] = this._mesh._normals[0][k+1];
+                        this._mesh._normals[0][m+k+2] = this._mesh._normals[0][k+2];
+                    }
+                }
+
+                this._mesh.calcTexCoords("");
+
+                this.invalidateVolume();
+                this._mesh._numFaces = this._mesh._indices[0].length / 3;
+                this._mesh._numCoords = this._mesh._positions[0].length / 3;
+            },
+
+            fieldChanged: function(fieldName)
+            {
+                if (fieldName == "crossSection" || fieldName == "angle" || fieldName == "caps" ||
+                    fieldName == "subdivision" || fieldName == "creaseAngle")
+                {
+                    this.rebuildGeometry();
+
+                    Array.forEach(this._parentNodes, function (node) {
+                        node.setAllDirty();
+                        node.invalidateVolume();
+                    });
+                }
+            }
+        }
+    )
+);
+
+
+/* ### SphereSegment ### */
+x3dom.registerNodeType(
+    "SphereSegment",
+    "Geometry3D",
+    defineClass(x3dom.nodeTypes.X3DSpatialGeometryNode,
+        function (ctx) {
+            x3dom.nodeTypes.SphereSegment.superClass.call(this, ctx);
+
+            this.addField_SFFloat(ctx, 'radius', 1);
+            this.addField_MFFloat(ctx, 'longitude', []);
+            this.addField_MFFloat(ctx, 'latitude', []);
+            this.addField_SFVec2f(ctx, 'stepSize', 1, 1);
+
+            var r = this._vf.radius;
+            var longs = this._vf.longitude;
+            var lats = this._vf.latitude;
+
+            var subx = longs.length, suby = lats.length;
+            var first, second;
+
+            var latNumber, longNumber;
+            var latitudeBands = suby;
+            var longitudeBands = subx;
+
+            var theta, sinTheta, cosTheta;
+            var phi, sinPhi, cosPhi;
+            var x, y, z, u, v;
+
+            for (latNumber = 0; latNumber <= latitudeBands; latNumber++) {
+                theta = ((lats[latNumber]+90) * Math.PI) / 180;
+                sinTheta = Math.sin(theta);
+                cosTheta = Math.cos(theta);
+
+                for (longNumber = 0; longNumber <= longitudeBands; longNumber++) {
+                    phi = ((longs[longNumber]) * Math.PI) / 180;
+
+                    sinPhi = Math.sin(phi);
+                    cosPhi = Math.cos(phi);
+
+                    x = -cosPhi * sinTheta;
+                    y = -cosTheta;
+                    z = -sinPhi * sinTheta;
+
+                    u = longNumber / (longitudeBands-1);
+                    v = latNumber / (latitudeBands-1);
+
+                    this._mesh._positions[0].push(r * x, r * y, r * z);
+                    this._mesh._normals[0].push(x, y, z);
+                    this._mesh._texCoords[0].push(u, v);
+                }
+            }
+
+            for (latNumber = 0; latNumber < latitudeBands; latNumber++) {
+                for (longNumber = 0; longNumber < longitudeBands; longNumber++) {
+                    first = (latNumber * (longitudeBands + 1)) + longNumber;
+                    second = first + longitudeBands + 1;
+
+                    this._mesh._indices[0].push(first);
+                    this._mesh._indices[0].push(second);
+                    this._mesh._indices[0].push(first + 1);
+
+                    this._mesh._indices[0].push(second);
+                    this._mesh._indices[0].push(second + 1);
+                    this._mesh._indices[0].push(first + 1);
+                }
+            }
+
+            this._mesh._invalidate = true;
+            this._mesh._numFaces = this._mesh._indices[0].length / 3;
+            this._mesh._numCoords = this._mesh._positions[0].length / 3;
+        }
+    )
+);
+
+/* ### ElevationGrid ### */
+x3dom.registerNodeType(
+    "ElevationGrid",
+    "Geometry3D",
+    defineClass(x3dom.nodeTypes.X3DGeometryNode,
+        function (ctx) {
+            x3dom.nodeTypes.ElevationGrid.superClass.call(this, ctx);
+
+            this.addField_SFBool(ctx, 'colorPerVertex', true);
+            this.addField_SFBool(ctx, 'normalPerVertex', true);
+            this.addField_SFFloat(ctx, 'creaseAngle', 0);
+
+            this.addField_MFNode('attrib', x3dom.nodeTypes.X3DVertexAttributeNode);
+            this.addField_SFNode('normal', x3dom.nodeTypes.Normal);
+            this.addField_SFNode('color', x3dom.nodeTypes.X3DColorNode);
+            this.addField_SFNode('texCoord', x3dom.nodeTypes.X3DTextureCoordinateNode);
+
+            this.addField_MFFloat(ctx, 'height', []);
+            this.addField_SFInt32(ctx, 'xDimension', 0);
+            this.addField_SFFloat(ctx, 'xSpacing', 1.0);
+            this.addField_SFInt32(ctx, 'zDimension', 0);
+            this.addField_SFFloat(ctx, 'zSpacing', 1.0);
+        },
+        {
+            nodeChanged: function()
+            {
+                this._mesh._indices[0] = [];
+                this._mesh._positions[0] = [];
+                this._mesh._normals[0] = [];
+                this._mesh._texCoords[0] = [];
+                this._mesh._colors[0] = [];
+
+                var x = 0, y = 0;
+                var subx = this._vf.xDimension-1;
+                var suby = this._vf.zDimension-1;
+
+                var h = this._vf.height;
+
+                x3dom.debug.assert((h.length === this._vf.xDimension*this._vf.zDimension));
+
+                var normals = null, texCoords = null, colors = null;
+
+                if (this._cf.normal.node) {
+                    normals = this._cf.normal.node._vf.vector;
+                }
+
+                var numTexComponents = 2;
+
+                var texCoordNode = this._cf.texCoord.node;
+                if (x3dom.isa(texCoordNode, x3dom.nodeTypes.MultiTextureCoordinate)) {
+                    if (texCoordNode._cf.texCoord.nodes.length)
+                        texCoordNode = texCoordNode._cf.texCoord.nodes[0];
+                }
+
+                if (texCoordNode) {
+                    if (texCoordNode._vf.point) {
+                        texCoords = texCoordNode._vf.point;
+                        if (x3dom.isa(texCoordNode, x3dom.nodeTypes.TextureCoordinate3D)) {
+                            numTexComponents = 3;
+                        }
+                    }
+                }
+
+                var numColComponents = 3;
+                if (this._cf.color.node) {
+                    colors = this._cf.color.node._vf.color;
+                    if (x3dom.isa(this._cf.color.node, x3dom.nodeTypes.ColorRGBA)) {
+                        numColComponents = 4;
+                    }
+                }
+
+                var c = 0;
+
+                for (y = 0; y <= suby; y++)
+                {
+                    for (x = 0; x <= subx; x++)
+                    {
+                        this._mesh._positions[0].push(x * this._vf.xSpacing);
+                        this._mesh._positions[0].push(h[c]);
+                        this._mesh._positions[0].push(y * this._vf.zSpacing);
+
+                        if (normals) {
+                            this._mesh._normals[0].push(normals[c].x);
+                            this._mesh._normals[0].push(normals[c].y);
+                            this._mesh._normals[0].push(normals[c].z);
+                        }
+
+                        if (texCoords) {
+                            this._mesh._texCoords[0].push(texCoords[c].x);
+                            this._mesh._texCoords[0].push(texCoords[c].y);
+                            if (numTexComponents === 3) {
+                                this._mesh._texCoords[0].push(texCoords[c].z);
+                            }
+                        }
+                        else {
+                            this._mesh._texCoords[0].push(x / subx);
+                            this._mesh._texCoords[0].push(y / suby);
+                        }
+
+                        if (colors) {
+                            this._mesh._colors[0].push(colors[c].r);
+                            this._mesh._colors[0].push(colors[c].g);
+                            this._mesh._colors[0].push(colors[c].b);
+                            if (numColComponents === 4) {
+                                this._mesh._colors[0].push(colors[c].a);
+                            }
+                        }
+
+                        c++;
+                    }
+                }
+
+                for (y = 1; y <= suby; y++) {
+                    for (x = 0; x < subx; x++) {
+                        this._mesh._indices[0].push((y - 1) * (subx + 1) + x);
+                        this._mesh._indices[0].push(y * (subx + 1) + x);
+                        this._mesh._indices[0].push((y - 1) * (subx + 1) + x + 1);
+
+                        this._mesh._indices[0].push(y * (subx + 1) + x);
+                        this._mesh._indices[0].push(y * (subx + 1) + x + 1);
+                        this._mesh._indices[0].push((y - 1) * (subx + 1) + x + 1);
+                    }
+                }
+
+                // TODO; handle at least per quad normals
+                //       (corresponds to creaseAngle = 0)
+                //this._mesh.calcNormals(this._vf.creaseAngle, this._vf.ccw);
+                if (!normals)
+                    this._mesh.calcNormals(Math.PI, this._vf.ccw);
+
+                this.invalidateVolume();
+                this._mesh._numTexComponents = numTexComponents;
+                this._mesh._numColComponents = numColComponents;
+                this._mesh._numFaces = this._mesh._indices[0].length / 3;
+                this._mesh._numCoords = this._mesh._positions[0].length / 3;
+            },
+
+            fieldChanged: function(fieldName)
+            {
+                var normals = null;
+
+                if (this._cf.normal.node) {
+                    normals = this._cf.normal.node._vf.vector;
+                }
+
+                if (fieldName == "height")
+                {
+                    var i, n = this._mesh._positions[0].length / 3;
+                    var h = this._vf.height;
+
+                    for (i=0; i<n; i++) {
+                        this._mesh._positions[0][3*i+1] = h[i];
+                    }
+
+                    if (!normals) {
+                        this._mesh._normals[0] = [];
+                        this._mesh.calcNormals(Math.PI, this._vf.ccw);
+                    }
+
+                    this.invalidateVolume();
+
+                    Array.forEach(this._parentNodes, function (node) {
+                        node._dirty.positions = true;
+                        if (!normals)
+                            node._dirty.normals = true;
+                        node.invalidateVolume();
+                    });
+                }
+                // TODO: handle other cases!
+            }
+        }
+    )
+);
+
+/* ### Extrusion ### */
+x3dom.registerNodeType(
+    "Extrusion",
+    "Geometry3D",
+    defineClass(x3dom.nodeTypes.X3DGeometryNode,
+        function (ctx) {
+            x3dom.nodeTypes.Extrusion.superClass.call(this, ctx);
+
+            this.addField_SFBool(ctx, 'beginCap', true);
+            this.addField_SFBool(ctx, 'endCap', true);
+            this.addField_SFBool(ctx, 'convex', true);
+            this.addField_SFFloat(ctx, 'creaseAngle', 0);
+            this.addField_MFVec2f(ctx, 'crossSection', []);   //1, 1, 1, -1, -1, -1, -1, 1, 1, 1
+            this.addField_MFRotation(ctx, 'orientation', []); //0, 0, 1, 0
+            this.addField_MFVec2f(ctx, 'scale', []); //1, 1
+            this.addField_MFVec3f(ctx, 'spine', []); //0, 0, 0, 0, 1, 0
+            this.addField_SFFloat(ctx, 'height', 0); // convenience field for setting default spine
+
+            // http://www.web3d.org/files/specifications/19775-1/V3.3/Part01/components/geometry3D.html#Extrusion
+            // http://accad.osu.edu/~pgerstma/class/vnv/resources/info/AnnotatedVrmlRef/ch3-318.htm
+            this.rebuildGeometry();
+        },
+        {
+            rebuildGeometry: function()
+            {
+                this._mesh._positions[0] = [];
+                this._mesh._normals[0]   = [];
+                this._mesh._texCoords[0] = [];
+                this._mesh._indices[0]   = [];
+
+                var i, j, n, m, len, sx = 1, sy = 1;
+                var spine = this._vf.spine,
+                    scale = this._vf.scale,
+                    orientation = this._vf.orientation,
+                    crossSection = this._vf.crossSection;
+                var positions = [], index = 0;
+                var cleanSpine = false;
+
+                m = spine.length;
+                n = crossSection.length;
+
+                if (m == 0 && this._vf.height > 0) {
+                    spine[0] = new x3dom.fields.SFVec3f(0, 0, 0);
+                    spine[1] = new x3dom.fields.SFVec3f(0, this._vf.height, 0);
+                    m = 2;
+                    cleanSpine = true;
+                }
+
+                var x, y, z, last_z;
+                var spineClosed = (m > 2) ? spine[0].equals(spine[spine.length-1], x3dom.fields.Eps) : false;
+
+                for (i=0; i<m; i++) {
+                    if ((len = scale.length) > 0) {
+                        if (i < len) {
+                            sx = scale[i].x;
+                            sy = scale[i].y;
+                        }
+                        else {
+                            sx = scale[len-1].x;
+                            sy = scale[len-1].y;
+                        }
+                    }
+
+                    for (j=0; j<n; j++) {
+                        var pos = new x3dom.fields.SFVec3f(
+                            crossSection[j].x * sx + spine[i].x,
+                            spine[i].y,
+                            crossSection[j].y * sy + spine[i].z);
+
+                        if (m > 2 && orientation.length == m) {
+                            if (i == 0) {
+                                if (spineClosed) {
+                                    y = spine[1].subtract(spine[m-2]).normalize();
+                                    z = spine[1].subtract(spine[0]).normalize().cross(spine[m-2].subtract(spine[0]).normalize());
+                                }
+                                else {
+                                    y = spine[1].subtract(spine[0]).normalize();
+                                    z = spine[2].subtract(spine[1]).normalize().cross(spine[0].subtract(spine[1]).normalize());
+                                }
+                                last_z = x3dom.fields.SFVec3f.copy(z);
+                            }
+                            else if (i == m-1) {
+                                if (spineClosed) {
+                                    y = spine[1].subtract(spine[m-2]).normalize();
+                                    z = spine[1].subtract(spine[0]).normalize().cross(spine[m-2].subtract(spine[0]).normalize());
+                                }
+                                else {
+                                    y = spine[m-1].subtract(spine[m-2]).normalize();
+                                    z = x3dom.fields.SFVec3f.copy(last_z);
+                                }
+                            }
+                            else {
+                                y = spine[i+1].subtract(spine[i]).normalize();
+                                z = y.cross(spine[i-1].subtract(spine[i]).normalize());
+                            }
+                            if (z.dot(last_z) < 0) {
+                                z = z.negate();
+                            }
+                            if (i != 0) {
+                                last_z = x3dom.fields.SFVec3f.copy(z);
+                            }
+                            x = y.cross(z);
+
+                            var baseMat = x3dom.fields.SFMatrix4f.identity();
+                            baseMat.setValue(x, y, z);
+                            var rotMat = orientation[i].toMatrix();
+
+                            pos = pos.subtract(spine[i]);
+                            pos = baseMat.multMatrixPnt(rotMat.multMatrixPnt(pos));
+                            pos = pos.add(spine[i]);
+                        }
+
+                        positions.push(pos);
+
+                        if (this._vf.creaseAngle <= x3dom.fields.Eps) {
+                            if (i > 0 && j > 0) {
+                                var iPos = (i-1)*n+(j-1);
+                                this._mesh._positions[0].push(positions[iPos].x, positions[iPos].y, positions[iPos].z);
+                                iPos = (i-1)*n+j;
+                                this._mesh._positions[0].push(positions[iPos].x, positions[iPos].y, positions[iPos].z);
+                                iPos = i*n+j;
+                                this._mesh._positions[0].push(positions[iPos].x, positions[iPos].y, positions[iPos].z);
+
+                                this._mesh._indices[0].push(index++, index++, index++);
+
+                                this._mesh._positions[0].push(positions[iPos].x, positions[iPos].y, positions[iPos].z);
+                                iPos = i*n+(j-1);
+                                this._mesh._positions[0].push(positions[iPos].x, positions[iPos].y, positions[iPos].z);
+                                iPos = (i-1)*n+(j-1);
+                                this._mesh._positions[0].push(positions[iPos].x, positions[iPos].y, positions[iPos].z);
+
+                                this._mesh._indices[0].push(index++, index++, index++);
+                            }
+                        }
+                        else {
+                            this._mesh._positions[0].push(pos.x, pos.y, pos.z);
+
+                            if (i > 0 && j > 0) {
+                                this._mesh._indices[0].push((i-1)*n+(j-1), (i-1)*n+ j   ,  i   *n+ j   );
+                                this._mesh._indices[0].push( i   *n+ j   ,  i   *n+(j-1), (i-1)*n+(j-1));
+                            }
+                        }
+                    }
+
+                    if (i == m-1) {
+                        var p0, l, startPos;
+                        var linklist, linklist_indices;
+
+                        // add bottom (1st cross-section)
+                        if (this._vf.beginCap) {
+                            linklist = new x3dom.DoublyLinkedList();
+                            l = this._mesh._positions[0].length / 3;
+
+                            for (j=0; j<n; j++) {
+                                linklist.appendNode(new x3dom.DoublyLinkedList.ListNode(positions[j], j));
+
+                                if (this._vf.creaseAngle > x3dom.fields.Eps) {
+                                    p0 = positions[j];
+                                    this._mesh._positions[0].push(p0.x, p0.y, p0.z);
+                                }
+                            }
+
+                            linklist_indices = x3dom.EarClipping.getIndexes(linklist);
+
+                            for (j=linklist_indices.length-1; j>=0; j--) {
+                                if (this._vf.creaseAngle > x3dom.fields.Eps) {
+                                    this._mesh._indices[0].push(l + linklist_indices[j]);
+                                }
+                                else {
+                                    p0 = positions[linklist_indices[j]];
+                                    this._mesh._positions[0].push(p0.x, p0.y, p0.z);
+                                    this._mesh._indices[0].push(index++);
+                                }
+                            }
+                        }
+
+                        // add top (last cross-section)
+                        if (this._vf.endCap) {
+                            linklist = new x3dom.DoublyLinkedList();
+                            startPos = (m - 1) * n;
+                            l = this._mesh._positions[0].length / 3;
+
+                            for (j=0; j<n; j++) {
+                                linklist.appendNode(new x3dom.DoublyLinkedList.ListNode(positions[startPos+j], startPos+j));
+
+                                if (this._vf.creaseAngle > x3dom.fields.Eps) {
+                                    p0 = positions[startPos+j];
+                                    this._mesh._positions[0].push(p0.x, p0.y, p0.z);
+                                }
+                            }
+
+                            linklist_indices = x3dom.EarClipping.getIndexes(linklist);
+
+                            for (j=0; j<linklist_indices.length; j++) {
+                                if (this._vf.creaseAngle > x3dom.fields.Eps) {
+                                    this._mesh._indices[0].push(l + (linklist_indices[j] - startPos));
+                                }
+                                else {
+                                    p0 = positions[linklist_indices[j]];
+                                    this._mesh._positions[0].push(p0.x, p0.y, p0.z);
+                                    this._mesh._indices[0].push(index++);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (cleanSpine) {
+                    this._vf.spine = new x3dom.fields.MFVec3f();
+                }
+
+                this._mesh.calcNormals(this._vf.creaseAngle, this._vf.ccw);
+                this._mesh.calcTexCoords("");
+
+                this.invalidateVolume();
+                this._mesh._numFaces = this._mesh._indices[0].length / 3;
+                this._mesh._numCoords = this._mesh._positions[0].length / 3;
+            },
+
+            fieldChanged: function(fieldName)
+            {
+                if (fieldName == "beginCap" || fieldName == "endCap" ||
+                    fieldName == "crossSection" || fieldName == "orientation" ||
+                    fieldName == "scale" || fieldName == "spine" ||
+                    fieldName == "height" || fieldName == "creaseAngle")
+                {
+                    this.rebuildGeometry();
+
+                    Array.forEach(this._parentNodes, function (node) {
+                        node.setAllDirty();
+                        node.invalidateVolume();
+                    });
+                }
+            }
+        }
+    )
+);
+
+
+/*
+ * X3DOM JavaScript Library
+ * http://www.x3dom.org
+ *
+ * (C)2009 Fraunhofer IGD, Darmstadt, Germany
+ * Dual licensed under the MIT and GPL
+ *
+ * Based on code originally provided by
+ * Philip Taylor: http://philip.html5.org
+ */
+
+
+/**
+ *  Moveable interface, wraps x3d bounded node with SpaceSensor-like movement functionality,
+ *  therefore attaches event handlers, thus to be called earliest in document.onload method.
+ *
+ *  Cleanup backrefs and listeners on delete by explicitly calling detachHandlers()
+ */
+x3dom.Moveable = function(x3domElem, boundedObj, callback, gridSize, mode) {
+    this._x3domRoot = x3domElem;
+    this._runtime = x3domElem.runtime;
+
+    // callback function for notifying changes
+    this._callback = callback;
+
+    // snap to grid of given size (0, no grid, if undefined)
+    this._gridSize = gridSize ? gridSize : 0;
+
+    this._moveable = boundedObj;
+    this._drag = false;
+
+    this._w = 0;
+    this._h = 0;
+
+    this._uPlane = null;
+    this._vPlane = null;
+    this._pPlane = null;
+
+    this._isect = null;
+
+    this._translationOffset = null;
+    this._rotationOffset = null;
+    this._scaleOffset = null;
+
+    this._lastX = 0;
+    this._lastY = 0;
+    this._buttonState = 0;
+
+    this._mode = (mode && mode.length) ? mode.toLowerCase() : "translation"; //"all";
+
+    this._firstRay = null;
+    this._matrixTrafo = null;
+
+    this._navType = "examine";
+
+    this.attachHandlers();
+};
+
+// grid size setter, for snapping
+x3dom.Moveable.prototype.setGridSize = function(gridSize) {
+    this._gridSize = gridSize;
+};
+
+// interaction mode setter, for translation and/or rotation
+x3dom.Moveable.prototype.setMode = function(mode) {
+    this._mode = mode.toLowerCase();
+};
+
+x3dom.Moveable.prototype.attachHandlers = function() {
+    // add backref to movable object (for member access and wrapping)
+    this._moveable._iMove = this;
+
+    // add backref to <x3d> element
+    if (!this._x3domRoot._iMove)
+        this._x3domRoot._iMove = [];
+    this._x3domRoot._iMove.push(this);
+
+    // mouse events
+    this._moveable.addEventListener('mousedown', this.start, false);
+    this._moveable.addEventListener('mouseover', this.over, false);
+    this._moveable.addEventListener('mouseout', this.out, false);
+
+    if (this._x3domRoot._iMove.length == 1) {
+        // more mouse events
+        this._x3domRoot.addEventListener('mouseup', this.stop, false);
+        this._x3domRoot.addEventListener('mouseout', this.stop, false);
+        this._x3domRoot.addEventListener('mousemove', this.move, true);
+
+        if (!this._runtime.canvas.disableTouch) {
+            // mozilla touch events
+            this._x3domRoot.addEventListener('MozTouchDown', this.touchStartHandlerMoz, false);
+            this._x3domRoot.addEventListener('MozTouchMove', this.touchMoveHandlerMoz, true);
+            this._x3domRoot.addEventListener('MozTouchUp', this.touchEndHandlerMoz, false);
+            // w3c / apple touch events
+            this._x3domRoot.addEventListener('touchstart', this.touchStartHandler, false);
+            this._x3domRoot.addEventListener('touchmove', this.touchMoveHandler, true);
+            this._x3domRoot.addEventListener('touchend', this.touchEndHandler, false);
+        }
+    }
+};
+
+x3dom.Moveable.prototype.detachHandlers = function() {
+    // remove backref to <x3d> element
+    var iMove = this._x3domRoot._iMove;
+    if (iMove) {
+        for (var i=0, n=iMove.length; i<n; i++) {
+            if (iMove[i] == this) {
+                iMove.splice(i, 1);
+                break;
+            }
+        }
+    }
+
+    // mouse events
+    this._moveable.removeEventListener('mousedown', this.start, false);
+    this._moveable.removeEventListener('mouseover', this.over, false);
+    this._moveable.removeEventListener('mouseout', this.out, false);
+
+    if (iMove.length == 0) {
+        // more mouse events
+        this._x3domRoot.removeEventListener('mouseup', this.stop, false);
+        this._x3domRoot.removeEventListener('mouseout', this.stop, false);
+        this._x3domRoot.removeEventListener('mousemove', this.move, true);
+
+        if (!this._runtime.canvas.disableTouch) {
+            // touch events
+            this._x3domRoot.removeEventListener('MozTouchDown', this.touchStartHandlerMoz, false);
+            this._x3domRoot.removeEventListener('MozTouchMove', this.touchMoveHandlerMoz, true);
+            this._x3domRoot.removeEventListener('MozTouchUp', this.touchEndHandlerMoz, false);
+            // mozilla version
+            this._x3domRoot.removeEventListener('touchstart', this.touchStartHandler, false);
+            this._x3domRoot.removeEventListener('touchmove', this.touchMoveHandler, true);
+            this._x3domRoot.removeEventListener('touchend', this.touchEndHandler, false);
+        }
+    }
+
+    // finally remove backref to movable object
+    if (this._moveable._iMove)
+        delete this._moveable._iMove;
+};
+
+// calculate viewing plane
+x3dom.Moveable.prototype.calcViewPlane = function(origin) {
+    // init width and height
+    this._w = this._runtime.getWidth();
+    this._h = this._runtime.getHeight();
+
+    //bottom left of viewarea
+    var ray = this._runtime.getViewingRay(0, this._h - 1);
+    var r = ray.pos.add(ray.dir);
+
+    //bottom right of viewarea
+    ray = this._runtime.getViewingRay(this._w - 1, this._h - 1);
+    var s = ray.pos.add(ray.dir);
+
+    //top left of viewarea
+    ray = this._runtime.getViewingRay(0, 0);
+    var t = ray.pos.add(ray.dir);
+
+    this._uPlane = s.subtract(r).normalize();
+    this._vPlane = t.subtract(r).normalize();
+
+    if (arguments.length === 0)
+        this._pPlane = r;
+    else
+        this._pPlane = x3dom.fields.SFVec3f.copy(origin);
+};
+
+// helper method to obtain determinant
+x3dom.Moveable.prototype.det = function(mat) {
+    return mat[0][0] * mat[1][1] * mat[2][2] + mat[0][1] * mat[1][2] * mat[2][0] +
+           mat[0][2] * mat[2][1] * mat[1][0] - mat[2][0] * mat[1][1] * mat[0][2] -
+           mat[0][0] * mat[2][1] * mat[1][2] - mat[1][0] * mat[0][1] * mat[2][2];
+};
+
+// Translation along plane parallel to viewing plane E:x=p+t*u+s*v
+x3dom.Moveable.prototype.translateXY = function(l) {
+    var track = null;
+    var z = [], n = [];
+
+    for (var i = 0; i < 3; i++) {
+        z[i] = [];
+        n[i] = [];
+
+        z[i][0] = this._uPlane.at(i);
+        n[i][0] = z[i][0];
+
+        z[i][1] = this._vPlane.at(i);
+        n[i][1] = z[i][1];
+
+        z[i][2] = (l.pos.subtract(this._pPlane)).at(i);
+        n[i][2] = -l.dir.at(i);
+    }
+
+    // get intersection line-plane with Cramer's rule
+    var s = this.det(n);
+
+    if (s !== 0) {
+        var t = this.det(z) / s;
+        track = l.pos.addScaled(l.dir, t);
+    }
+
+    if (track) {
+        if (this._isect) {
+            // calc offset from first click position
+            track = track.subtract(this._isect);
+        }
+        track = track.add(this._translationOffset);
+    }
+
+    return track;
+};
+
+// Translation along picking ray
+x3dom.Moveable.prototype.translateZ = function(l, currY) {
+    var vol = this._runtime.getSceneBBox();
+
+    var sign = (currY < this._lastY) ? 1 : -1;
+    var fact = sign * (vol.max.subtract(vol.min)).length() / 100;
+
+    this._translationOffset = this._translationOffset.addScaled(l.dir, fact);
+
+    return this._translationOffset;
+};
+
+x3dom.Moveable.prototype.rotate = function(posX, posY) {
+    var twoPi = 2 * Math.PI;
+    var alpha = ((posY - this._lastY) * twoPi) / this._w;
+    var beta  = ((posX - this._lastX) * twoPi) / this._h;
+
+    var q = x3dom.fields.Quaternion.axisAngle(this._uPlane, alpha);
+    var h = q.toMatrix();
+    this._rotationOffset = h.mult(this._rotationOffset);
+
+    q = x3dom.fields.Quaternion.axisAngle(this._vPlane, beta);
+    h = q.toMatrix();
+    this._rotationOffset = h.mult(this._rotationOffset);
+
+    var mat = this._rotationOffset.mult(x3dom.fields.SFMatrix4f.scale(this._scaleOffset));
+    var rot = new x3dom.fields.Quaternion(0, 0, 1, 0);
+    rot.setValue(mat);
+
+    return rot;
+};
+
+x3dom.Moveable.prototype.over = function(event) {
+    var that = this._iMove;
+
+    that._runtime.getCanvas().style.cursor = "crosshair";
+};
+
+x3dom.Moveable.prototype.out = function(event) {
+    var that = this._iMove;
+
+    if (!that._drag)
+        that._runtime.getCanvas().style.cursor = "pointer";
+};
+
+// start object movement, switch from navigation to interaction
+x3dom.Moveable.prototype.start = function(event) {
+    var that = this._iMove;
+
+    // use mouse button to distinguish between parallel or orthogonal movement or rotation
+    switch (that._mode) {
+        case "translation":
+            that._buttonState = (event.button == 4) ? 1 : (event.button & 3);
+            break;
+        case "rotation":
+            that._buttonState = 4;
+            break;
+        case "all":
+        default:
+            that._buttonState = event.button;
+            break;
+    }
+
+    if (!that._drag && that._buttonState) {
+        that._lastX = event.layerX;
+        that._lastY = event.layerY;
+
+        that._drag = true;
+
+        // temporarily disable navigation
+        that._navType = that._runtime.navigationType();
+        that._runtime.noNav();
+
+        // calc view-aligned plane through original pick position
+        that._isect = new x3dom.fields.SFVec3f(event.worldX, event.worldY, event.worldZ);
+        that.calcViewPlane(that._isect);
+
+        that._firstRay = that._runtime.getViewingRay(event.layerX, event.layerY);
+
+        var mTrans = that._moveable.getAttribute("translation");
+        that._matrixTrafo = null;
+
+        if (mTrans) {
+            that._translationOffset = x3dom.fields.SFVec3f.parse(mTrans);
+
+            var mRot = that._moveable.getAttribute("rotation");
+            mRot = mRot ? x3dom.fields.Quaternion.parseAxisAngle(mRot) : new x3dom.fields.Quaternion(0,0,1,0);
+            that._rotationOffset = mRot.toMatrix();
+
+            var mScal = that._moveable.getAttribute("scale");
+            that._scaleOffset = mScal ? x3dom.fields.SFVec3f.parse(mScal) : new x3dom.fields.SFVec3f(1, 1, 1);
+        }
+        else {
+            mTrans = that._moveable.getAttribute("matrix");
+
+            if (mTrans) {
+                that._matrixTrafo = x3dom.fields.SFMatrix4f.parse(mTrans).transpose();
+
+                var translation = new x3dom.fields.SFVec3f(0,0,0),
+                    scaleFactor = new x3dom.fields.SFVec3f(1,1,1);
+                var rotation = new x3dom.fields.Quaternion(0,0,1,0),
+                    scaleOrientation = new x3dom.fields.Quaternion(0,0,1,0);
+
+                that._matrixTrafo.getTransform(translation, rotation, scaleFactor, scaleOrientation);
+
+                //that._translationOffset = that._matrixTrafo.e3();
+                that._translationOffset = translation;
+                that._rotationOffset = rotation.toMatrix();
+                that._scaleOffset = scaleFactor;
+            }
+            else {
+                that._translationOffset = new x3dom.fields.SFVec3f(0, 0, 0);
+                that._rotationOffset = new x3dom.fields.SFMatrix4f();
+                that._scaleOffset = new x3dom.fields.SFVec3f(1, 1, 1);
+            }
+        }
+
+        that._runtime.getCanvas().style.cursor = "crosshair";
+    }
+};
+
+x3dom.Moveable.prototype.move = function(event) {
+    for (var i=0, n=this._iMove.length; i<n; i++) {
+        var that = this._iMove[i];
+
+        if (that._drag) {
+            var pos = that._runtime.mousePosition(event);
+            var ray = that._runtime.getViewingRay(pos[0], pos[1]);
+
+            var track = null;
+
+            // zoom with right mouse button (2), pan with left (1)
+            if (that._buttonState == 2)
+                track = that.translateZ(that._firstRay, pos[1]);
+            else if (that._buttonState == 1)
+                track = that.translateXY(ray);
+            else  // middle button: 4
+                track = that.rotate(pos[0], pos[1]);
+
+            if (track) {
+                if (that._gridSize > 0 && that._buttonState != 4) {
+                    var x = that._gridSize * Math.round(track.x / that._gridSize);
+                    var y = that._gridSize * Math.round(track.y / that._gridSize);
+                    var z = that._gridSize * Math.round(track.z / that._gridSize);
+                    track = new x3dom.fields.SFVec3f(x, y, z);
+                }
+
+                if (!that._matrixTrafo) {
+                    if (that._buttonState == 4) {
+                        that._moveable.setAttribute("rotation", track.toAxisAngle().toString());
+                    }
+                    else {
+                        that._moveable.setAttribute("translation", track.toString());
+                    }
+                }
+                else {
+                    if (that._buttonState == 4) {
+                        that._matrixTrafo.setRotate(track);
+                    }
+                    else {
+                        that._matrixTrafo.setTranslate(track);
+                    }
+                    that._moveable.setAttribute("matrix", that._matrixTrafo.toGL().toString());
+                }
+
+                if (that._callback) {
+                    that._callback(that._moveable, track);
+                }
+            }
+
+            that._lastX = pos[0];
+            that._lastY = pos[1];
+        }
+    }
+};
+
+// stop object movement, switch from interaction to navigation
+x3dom.Moveable.prototype.stop = function(event) {
+    for (var i=0, n=this._iMove.length; i<n; i++) {
+        var that = this._iMove[i];
+
+        if (that._drag) {
+            that._lastX = event.layerX;
+            that._lastY = event.layerY;
+
+            that._isect = null;
+            that._drag = false;
+
+            // we're done, re-enable navigation
+            var navi = that._runtime.canvas.doc._scene.getNavigationInfo();
+            navi.setType(that._navType);
+
+            that._runtime.getCanvas().style.cursor = "pointer";
+        }
+    }
+};
+
+// TODO: impl. special (multi-)touch event stuff
+// === Touch Start (W3C) ===
+x3dom.Moveable.prototype.touchStartHandler = function (evt) {
+    evt.preventDefault();
+};
+
+// === Touch Start Moz (Firefox has other touch interface) ===
+x3dom.Moveable.prototype.touchStartHandlerMoz = function (evt) {
+    evt.preventDefault();
+};
+
+// === Touch Move ===
+x3dom.Moveable.prototype.touchMoveHandler = function (evt) {
+    evt.preventDefault();
+};
+
+// === Touch Move Moz ===
+x3dom.Moveable.prototype.touchMoveHandlerMoz = function (evt) {
+    evt.preventDefault();
+};
+
+// === Touch End ===
+x3dom.Moveable.prototype.touchEndHandler = function (evt) {
+    if (this._iMove.length) {
+        var that = this._iMove[0];
+        // mouse start code is called, but not stop
+        that.stop.apply(that._x3domRoot, [evt]);
+    }
+    evt.preventDefault();
+};
+
+// === Touch End Moz ===
+x3dom.Moveable.prototype.touchEndHandlerMoz = function (evt) {
+    if (this._iMove.length) {
+        var that = this._iMove[0];
+        that.stop.apply(that._x3domRoot, [evt]);
+    }
+    evt.preventDefault();
+};
+
+/*
+ * X3DOM JavaScript Library
+ * http://www.x3dom.org
+ *
+ * (C)2009 Fraunhofer IGD, Darmstadt, Germany
+ * Dual licensed under the MIT and GPL
+ *
+ * Based on code originally provided by
+ * Philip Taylor: http://philip.html5.org
+ */
+
+
+// This module adds documentation related functionality
+// to the library.
+
+/** @namespace The x3dom.docs namespace. */
+x3dom.docs = {};
+
+
+x3dom.docs.specURLMap = {
+    CADGeometry: "CADGeometry.html",
+    Core: "core.html",
+    DIS: "dis.html",
+    CubeMapTexturing: "env_texture.html",
+    EnvironmentalEffects: "enveffects.html",
+    EnvironmentalSensor: "envsensor.html",
+    Followers: "followers.html",
+    Geospatial: "geodata.html",
+    Geometry2D: "geometry2D.html",
+    Geometry3D: "geometry3D.html",
+    Grouping: "group.html",
+    "H-Anim": "hanim.html",
+    Interpolation: "interp.html",
+    KeyDeviceSensor: "keyboard.html",
+    Layering: "layering.html",
+    Layout: "layout.html",
+    Lighting: "lighting.html",
+    Navigation: "navigation.html",
+    Networking: "networking.html",
+    NURBS: "nurbs.html",
+    ParticleSystems: "particle_systems.html",
+    Picking: "picking.html",
+    PointingDeviceSensor: "pointingsensor.html",
+    Rendering: "rendering.html",
+    RigidBodyPhysics: "rigid_physics.html",
+    Scripting: "scripting.html",
+    Shaders: "shaders.html",
+    Shape: "shape.html",
+    Sound: "sound.html",
+    Text: "text.html",
+    Texturing3D: "texture3D.html",
+    Texturing: "texturing.html",
+    Time: "time.html",
+    EventUtilities: "utils.html",
+    VolumeRendering: "volume.html"
+};
+
+x3dom.docs.specBaseURL = "http://www.web3d.org/x3d/specifications/ISO-IEC-19775-1.2-X3D-AbstractSpecification/Part01/components/";
+
+
+// the dump-nodetype tree functionality in a function
+x3dom.docs.getNodeTreeInfo = function() {
+
+    // Create the nodetype hierarchy
+    var tn, t;
+    var types = "";
+
+    var objInArray = function(array, obj) {
+        for(var i=0; i<array.length; i++) {
+            if (array[i] === obj) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    var dump = function(t, indent) {
+        for (var i=0; i<indent; i++) {
+            types += "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
+        }
+
+        types += "<a href='" +
+                        x3dom.docs.specBaseURL + x3dom.docs.specURLMap[x3dom.nodeTypes[t]._compName] + "#" + t +
+                        "' style='color:black; text-decoration:none; font-weight:bold;'>" +
+                        t + "</a> &nbsp; <a href='" +
+                        x3dom.docs.specBaseURL + x3dom.docs.specURLMap[x3dom.nodeTypes[t]._compName] +
+                        "' style='color:black; text-decoration:none; font-style:italic;'>" +
+                        x3dom.nodeTypes[t]._compName + "</a><br/>";
+
+        for (var i in x3dom.nodeTypes[t].childTypes[t]) {
+            dump(x3dom.nodeTypes[t].childTypes[t][i], indent+1);
+        }
+    };
+
+    for (tn in x3dom.nodeTypes) {
+     var t = x3dom.nodeTypes[tn];
+         if (t.childTypes === undefined) {
+             t.childTypes = {};
+         }
+
+         while (t.superClass) {
+             if (t.superClass.childTypes[t.superClass._typeName] === undefined) {
+                 t.superClass.childTypes[t.superClass._typeName] = [];
+             }
+             if (!objInArray(t.superClass.childTypes[t.superClass._typeName], t._typeName)) {
+                 t.superClass.childTypes[t.superClass._typeName].push(t._typeName);
+             }
+             t = t.superClass;
+         }
+     }
+
+    dump("X3DNode", 0);
+
+    return "<div class='x3dom-doc-nodes-tree'>" + types + "</div>";
+};
+
+
+x3dom.docs.getComponentInfo = function() {
+    // Dump nodetypes by component
+    // but first sort alphabetically
+    var components = [];
+    var component;
+    var result = "";
+    var c, cn;
+
+    for (c in x3dom.components) {
+        components.push(c);
+    }
+    components.sort();
+
+    //for (var c in x3dom.components) {
+    for (cn in components) {
+        c = components[cn];
+        component = x3dom.components[c];
+        result += "<h2><a href='" +
+            x3dom.docs.specBaseURL + x3dom.docs.specURLMap[c] +
+            "' style='color:black; text-decoration:none; font-style:italic;'>" +
+            c + "</a></h2>";
+
+        result += "<ul style='list-style-type:circle;'>";
+
+        //var $ul = $("#components ul:last");
+        for (var t in component) {
+            result += "<li><a href='" +
+                x3dom.docs.specBaseURL + x3dom.docs.specURLMap[c] + "#" + t +
+                    "' style='color:black; text-decoration:none; font-weight:bold;'>" +
+                    t + "</a></li>";
+        }
+        result += "</ul>";
+    }
+
+    return result;
+};
+
 
 x3dom.versionInfo = {
     version:  '1.5.1',
