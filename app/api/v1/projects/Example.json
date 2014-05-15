@@ -1,0 +1,11 @@
+{
+  "name": "Example",
+  "files":
+    [
+    "src",
+    "src/x3d",
+    "src/x3d/bunny.x3d",
+    "src/x3d/horse.x3d",
+    "src/x3d/redBox.x3d"
+]
+}
