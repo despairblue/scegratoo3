@@ -1,6 +1,24 @@
 'use strict';
 
 describe('Directive: sgtX3d', function() {
+  // set up global mocks
+  var dat = function() {
+    return {
+      GUI: function() {
+        return {
+          add: function() {
+            return {listen: function() {}}
+          }
+        }
+      }
+    }
+  }
+  var x3dom = function() {
+    return {
+      reload: function(){},
+      Moveable: function(){}
+    }
+  }
 
   // load the directive's module
   beforeEach(module('scegratooApp'));
@@ -8,6 +26,11 @@ describe('Directive: sgtX3d', function() {
   var element, scope;
 
   beforeEach(inject(function($rootScope, $compile, $window, $routeParams) {
+    // set up globals
+    $window.dat = dat()
+    $window.x3dom = x3dom()
+    // set up spy on global `x3dom.relaod`
+    spyOn($window.x3dom, 'reload')
     scope = $rootScope.$new();
     // set up routes
     $routeParams.project = 'OrgelRT'
@@ -15,14 +38,12 @@ describe('Directive: sgtX3d', function() {
     // set up element, compile and link it
     element = angular.element('<div sgt-x3d content="x3d"></div>')
     element = $compile(element)(scope)
-    // set up spy on global `x3dom.relaod`
-    $window.x3dom = {reload: function(){}}
-    spyOn($window.x3dom, 'reload')
     // digest so that the directive gets instantiated
     scope.$digest()
   }));
 
   afterEach(inject(function($window) {
+    $window.dat = undefined
     $window.x3dom = undefined
   }))
 
