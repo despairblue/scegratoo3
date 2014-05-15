@@ -11,7 +11,7 @@ angular.module('scegratooApp')
       link: function postLink(scope, element, attrs) {
         console.debug('function postLink(%o, %o, %o)', scope, element, attrs)
 
-        var gui = new dat.GUI({autoPlace: false})
+        var gui = new $window.dat.GUI({autoPlace: false})
         console.debug('Created ', gui);
         element.parent().append(gui.domElement)
         var options = {useHitPnt: false}

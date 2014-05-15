@@ -29,8 +29,7 @@
     "expect": false,
     "inject": false,
     "it": false,
-    "spyOn": false,
-    "dat": false
+    "spyOn": false
   },
   "debug": true,
   "asi": true
