@@ -3,9 +3,8 @@
   "files":
     [
     "src",
-    "src/x3d",
-    "src/x3d/bunny.x3d",
-    "src/x3d/horse.x3d",
-    "src/x3d/redBox.x3d"
+    "src/bunny.x3d",
+    "src/horse.x3d",
+    "src/redBox.x3d"
 ]
 }
