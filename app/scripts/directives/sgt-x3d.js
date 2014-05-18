@@ -38,7 +38,7 @@ angular.module('scegratooApp')
           var drag = false
           var vecOffset
 
-          var start = (event) => {
+          var start = function(event) {
             // event.hitPnt is quite accurate
             // runtime.getCenter(hitObject) seems to return sth in local space
             // which is quite useless unless maybe added to the global translation...
@@ -61,7 +61,7 @@ angular.module('scegratooApp')
             drag = true
           }
 
-          var move = (event) => {
+          var move = function(event) {
             var crosshairs = document.querySelector('[DEF=crosshairs]')
             var moveableTranslation = event.getAttribute('translation').split(' ')
 
@@ -78,31 +78,31 @@ angular.module('scegratooApp')
             crosshairs.setAttribute('translation', moveableTranslation.join(' '))
           }
 
-          var stop = (event) => {
+          var stop = function(event) {
             console.debug('stop( %o)', event)
             drag = false
           }
 
           var inlines = element.find('inline').toArray()
 
-          for (let inline of inlines) {
+          angular.forEach(inlines, function(inline){
             var url = inline.getAttribute('url')
             inline.setAttribute('url', Constants.apiRoot +
               '/' + 'projects' +
               '/' + $routeParams.project +
               '/' + $routeParams.file.replace(/\/[^\/]*$/, '') +
               '/' + url)
-          }
+          });
 
           $window.x3dom.reload()
 
-          for (let inline of inlines) {
+          angular.forEach(inlines, function(inline){
             inline.addEventListener('mousedown', start)
             inline.addEventListener('mouseup', stop)
             // debugger
             new $window.x3dom.Moveable(element.children().get(0),
               inline.parentElement, move, 0, 'all')
-          }
+          });
 
         })
       }

@@ -1,12 +1,17 @@
 'use strict';
 
-traceur.options.experimental = true
-
-new traceur.WebPageTranscoder(document.location.href).run(function() {
+var bootstrap = function() {
 	angular.element(document).ready(function() {
 	  angular.bootstrap(document, ['scegratooApp']);
 	})
+}
 
+if (window.__karma__) {
+	bootstrap()
 	console.debug('bootstrap')
-});
-
+} else {
+	traceur.options.experimental = true
+	new traceur.WebPageTranscoder(document.location.href).run(function() {
+		bootstrap()
+	});
+}
