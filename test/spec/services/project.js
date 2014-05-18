@@ -3,9 +3,13 @@
 describe('Service: Project', function () {
   // register http://docs.angularjs.org/api/angular.equals
   beforeEach(function(){
-    this.addMatchers({
-      toEqualData: function(expected) {
-        return angular.equals(this.actual, expected)
+    jasmine.addMatchers({
+      toEqualData: function() {
+        return {
+          compare: function(actual, expected) {
+            return {pass: angular.equals(actual, expected)}
+          }
+        }
       }
     })
   })

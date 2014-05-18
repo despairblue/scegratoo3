@@ -67,10 +67,10 @@ describe('Directive: sgtX3d', function() {
   })
 
   it('should call $window.x3dom.reload() when content attribute changes', inject(function($window) {
-    expect($window.x3dom.reload.calls.length).toBe(1)
+    expect($window.x3dom.reload.calls.count()).toBe(1)
     scope.x3d = 'skeil'
     scope.$digest()
-    expect($window.x3dom.reload.calls.length).toBe(2)
+    expect($window.x3dom.reload.calls.count()).toBe(2)
   }))
 
   it('should translate the inline\'s url', function() {
