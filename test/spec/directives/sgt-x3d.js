@@ -8,6 +8,11 @@ describe('Directive: sgtX3d', function() {
         return {
           add: function() {
             return {listen: function() {}}
+          },
+          addFolder: function() {
+            return {add: function() {
+              return {listen: function() {}}
+            }}
           }
         }
       }
