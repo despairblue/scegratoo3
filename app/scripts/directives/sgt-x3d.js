@@ -44,31 +44,10 @@ angular.module('scegratooApp')
           element.html(content)
           element.children().addClass('fullpage')
 
-          var inlines = element.find('inline')
-
-          angular.forEach(inlines, function(inline) {
-            var url = inline.getAttribute('url')
-            inline.setAttribute('url', Constants.apiRoot +
-              '/' + 'projects' +
-              '/' + $routeParams.project +
-              '/' + $routeParams.file.replace(/\/[^\/]*$/, '') +
-              '/' + url)
-          })
-
-          $window.x3dom.reload()
-
-          angular.forEach(inlines, function(inline) {
-            inline.addEventListener('mousedown', start)
-            inline.addEventListener('mouseup', stop)
-            // debugger
-            new $window.x3dom.Moveable(element.children().get(0),
-              inline.parentElement, move, 0, 'all')
-          })
-
           var drag = false
           var transformVector
 
-          function start(event) {
+          var start = (event) => {
             // event.hitPnt is quite accurate
             // runtime.getCenter(hitObject) seems to return sth in local space
             // which is quite useless unless maybe added to the global translation...
@@ -100,7 +79,7 @@ angular.module('scegratooApp')
             drag = true
           }
 
-          function move (event) {
+          var move = (event) => {
             var crosshairs = document.querySelector('[DEF=crosshairs]')
             var moveableTranslation = event.getAttribute('translation').split(' ')
 
@@ -114,9 +93,30 @@ angular.module('scegratooApp')
             // start(event)
           }
 
-          function stop(event) {
+          var stop = (event) => {
             console.debug('stop( %o)', event)
             drag = false
+          }
+
+          var inlines = element.find('inline').toArray()
+
+          for (let inline of inlines) {
+            var url = inline.getAttribute('url')
+            inline.setAttribute('url', Constants.apiRoot +
+              '/' + 'projects' +
+              '/' + $routeParams.project +
+              '/' + $routeParams.file.replace(/\/[^\/]*$/, '') +
+              '/' + url)
+          }
+
+          $window.x3dom.reload()
+
+          for (let inline of inlines) {
+            inline.addEventListener('mousedown', start)
+            inline.addEventListener('mouseup', stop)
+            // debugger
+            new $window.x3dom.Moveable(element.children().get(0),
+              inline.parentElement, move, 0, 'all')
           }
 
         })

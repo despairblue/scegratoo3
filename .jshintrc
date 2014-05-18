@@ -29,9 +29,11 @@
     "expect": false,
     "inject": false,
     "it": false,
-    "spyOn": false
+    "spyOn": false,
+    "traceur": false
   },
   "debug": true,
-  "asi": true
+  "asi": true,
+  "esnext": true
 }
 
