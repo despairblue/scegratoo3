@@ -11,10 +11,14 @@ angular.module('scegratooApp')
       link: function postLink(scope, element, attrs) {
         console.debug('function postLink(%o, %o, %o)', scope, element, attrs)
 
+        // extract in directive
         var gui = new $window.dat.GUI({autoPlace: false})
         console.debug('Created ', gui);
-        element.parent().append(gui.domElement)
         var options = {useHitPnt: false}
+        element.parent().prepend($(gui.domElement)
+          .css('float', 'left')
+          .css('position', 'absolute')
+          .css('z-index', 1))
         // var useHitPnt = false
 
         // gui.remember(mediator)
