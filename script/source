@@ -1,0 +1,8 @@
+#!/bin/bash -e
+# Usage: `script/mount` from git root
+
+if [[ -e .git && -e node_modules ]]; then
+  echo -e "Old path:\n$PATH"
+  export PATH=$PATH:$(pwd)/node_modules/.bin
+  echo -e "New path:\n$PATH"
+fi
