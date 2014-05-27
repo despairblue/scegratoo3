@@ -48,6 +48,8 @@
     "node": ">=0.8.0"
   },
   "scripts": {
-    "test": "grunt test:unit"
+    "test": "grunt test:unit",
+    "karma": "karma start karma.conf.js",
+    "karma-chrome": "karma start karma-chrome.conf.js"
   }
 }
