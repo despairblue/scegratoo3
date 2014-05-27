@@ -18,24 +18,19 @@ describe('Directive: sgtX3d', function() {
       }
     }
   }
-  var x3dom = function() {
-    return {
-      reload: function(){},
-      Moveable: function(){}
-    }
-  }
 
   // load the directive's module
   beforeEach(module('scegratooApp'));
 
-  var element, scope;
+  var element, scope, X3domUtils;
 
-  beforeEach(inject(function($rootScope, $compile, $window, $routeParams) {
+  beforeEach(inject(function($rootScope, $compile, $window, $routeParams, _X3domUtils_) {
+    X3domUtils = _X3domUtils_
     // set up globals
     $window.dat = dat()
-    $window.x3dom = x3dom()
+    // $window.x3dom = x3dom()
     // set up spy on global `x3dom.relaod`
-    spyOn($window.x3dom, 'reload')
+    spyOn(_X3domUtils_, 'setUp')
     scope = $rootScope.$new();
     // set up routes
     $routeParams.project = 'OrgelRT'
@@ -66,17 +61,10 @@ describe('Directive: sgtX3d', function() {
     expect(element.children().hasClass('fullpage')).toBe(true)
   })
 
-  it('should call $window.x3dom.reload() when content attribute changes', inject(function($window) {
-    expect($window.x3dom.reload.calls.count()).toBe(1)
+  it('should call X3domUtils.setUp() when content attribute changes', inject(function() {
+    expect(X3domUtils.setUp.calls.count()).toBe(2)
     scope.x3d = 'skeil'
     scope.$digest()
-    expect($window.x3dom.reload.calls.count()).toBe(2)
+    expect(X3domUtils.setUp.calls.count()).toBe(3)
   }))
-
-  it('should translate the inline\'s url', function() {
-    scope.x3d = '<Inline url="x3d/awesomeModel.x3d"></Inline>'
-    scope.$digest()
-    var e = element[0].querySelector('inline')
-    expect(e.getAttribute('url')).toBe('api/v1/projects/OrgelRT/src/x3d/awesomeModel.x3d')
-  })
 });
