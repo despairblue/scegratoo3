@@ -8,7 +8,6 @@ var bootstrap = function() {
 
 if (window.__karma__) {
 	bootstrap()
-	console.debug('bootstrap')
 } else {
 	traceur.options.experimental = true
 	new traceur.WebPageTranscoder(document.location.href).run(function() {
