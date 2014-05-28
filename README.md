@@ -19,6 +19,28 @@ The Tool should provide following views and features
 
 Requirements: model driven software engineering, web development, JavaScript programming, 3D modeling
 
+### German for Matze
+
+Erstellung eines Web-basierten 3D Kompositionswerkzeuges
+Für das Projekt Roundtrip3D soll ein Web-basiertes 3D Szenen-Kompositionswerkzeug erstellt
+werden, unter Verwendung aktueller Webtechniken.
+Das Werkzeug soll folgende Sichten und Funktionalitäten bereitstellen:
+
+- eine 3D Ansicht zur Visualisierung und Bearbeitung von 3D Szenen im X3D Format
+- eine Baum Ansicht zur Darstellung und Bearbeitung von 3D Szenen im X3D Format
+- eine Textansicht mit Bearbeitungsmöglichkeiten für JavaScript Dokumente
+- eine Diagramm Ansicht für SSIML (Scene Structure and Integration Modelling Language)
+Modelle
+- es soll möglich sein Transformationsaufrufe (Roundtrip-Szenario) zwischen SSIML
+
+Modellen und den Zielsprachen (X3D und JavaScript) über das Webinterface an eine
+Eclipse-Instanz weiterzuleiten
+Sämtliche Modelle/ Daten werden auf einem Webserver gespeichert, wo auch die Eclipse-Instanz
+läuft.
+Geeignete Methoden aus aktuellen Arbeiten zum kollaborativen Arbeiten an Modellen sollen
+beleuchtet werden.
+Anforderungen: Webentwicklung, JavaScript Programmierung, 3D-Modellierung, Eclipse
+
 ## Stack
 - [angularjs](http://angularjs.org/)
 - [twitter bootstrap](http://getbootstrap.com/)
