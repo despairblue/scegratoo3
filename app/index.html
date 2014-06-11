@@ -20,6 +20,78 @@
     <link rel="stylesheet" href="styles/main.css">
     <!-- endbuild -->
     <!-- <script type="text/javascript">traceur.options.experimental = true</script> -->
+
+    <!-- Templates -->
+    <script type="text/ng-template" id="planeSensor-X.html">
+      <group>
+        <planeSensor autoOffset="true" axisRotation="1 0 0 -1.57" maxPosition="6 0" minPosition="-6 0"/>
+        <transform id="translationHandleTransform">
+          <transform rotation="0 1 0 1.57" translation="0 -5.5 0">
+            <transform rotation="1 0 0 1.57" translation="0 0 1.5">
+              <shape DEF="CONE_CAP">
+                <appearance DEF="BLUE">
+                  <material diffuseColor="0 0 1"/>
+                </appearance>
+                <cone height="1"/>
+              </shape>
+            </transform>
+            <transform rotation="1 0 0 -1.57">
+              <shape>
+                <appearance USE="BLUE"/>
+                <cylinder/>
+              </shape>
+            </transform>
+            <transform rotation="1 0 0 -1.57" translation="0 0 -1.5">
+              <shape USE="CONE_CAP"/>
+            </transform>
+          </transform>
+        </transform>
+      </group>
+    </script>
+    <script type="text/ng-template" id="crosshairs.html">
+      <Transform DEF="crosshairs">
+        <Group>
+          <Shape>
+            <IndexedLineSet coordIndex="0 1 -1 2 3 -1 4 5 -1"colorIndex="0 0 -1 1 1 -1 2 2 -1">
+              <Coordinate point="-1  0  0 1  0  0 0 -1  0 0  1  0 0  0 -1 0  0  1">
+              </Coordinate>
+              <Color color="1 0 0 0 1 0 0 0 1">
+              </Color>
+            </IndexedLineSet>
+          </Shape>
+          <Transform rotation="0 0 -1 1.57" translation="1 0 0">
+            <Shape>
+              <Appearance>
+                <Material diffuseColor="1 0 0">
+                </Material>
+              </Appearance>
+              <Cone height="0.1"bottomRadius="0.05">
+              </Cone>
+            </Shape>
+          </Transform>
+          <Transform translation="0 1 0">
+            <Shape>
+              <Appearance>
+                <Material diffuseColor="0 1 0">
+                </Material>
+              </Appearance>
+              <Cone height="0.1"bottomRadius="0.05">
+              </Cone>
+            </Shape>
+          </Transform>
+          <Transform rotation="1 0 0 1.57" translation="0 0 1">
+            <Shape>
+              <Appearance>
+                <Material diffuseColor="0 0 1">
+                </Material>
+              </Appearance>
+              <Cone height="0.1"bottomRadius="0.05">
+              </Cone>
+            </Shape>
+          </Transform>
+        </Group>
+      </Transform>
+    </script>
   </head>
   <body>
     <!--[if lt IE 7]>

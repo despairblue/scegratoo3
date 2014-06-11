@@ -1,7 +1,7 @@
 'use strict';
 
 angular.module('scegratooApp')
-  .service('X3domUtils', function X3domutils($window, $routeParams, Constants) {
+  .service('X3domUtils', function X3domutils($window, $routeParams, $templateCache, Constants) {
     // AngularJS will instantiate a singleton by calling "new" on this function
     var vecOffset = {
     	x: 0,
@@ -13,9 +13,10 @@ angular.module('scegratooApp')
 		  x: '',
 		  y: '',
 		  z: '',
-		}
-    var crosshairsTemplate = '<Transform DEF="crosshairs"> <Group> <Shape> <IndexedLineSet coordIndex="0 1 -1 2 3 -1 4 5 -1"colorIndex="0 0 -1 1 1 -1 2 2 -1"> <Coordinate point="-1  0  0 1  0  0 0 -1  0 0  1  0 0  0 -1 0  0  1"> </Coordinate> <Color color="1 0 0 0 1 0 0 0 1"> </Color> </IndexedLineSet> </Shape> <Transform rotation="0 0 -1 1.57" translation="1 0 0"> <Shape> <Appearance> <Material diffuseColor="1 0 0"> </Material> </Appearance> <Cone height="0.1"bottomRadius="0.05"> </Cone> </Shape> </Transform> <Transform translation="0 1 0"> <Shape> <Appearance> <Material diffuseColor="0 1 0"> </Material> </Appearance> <Cone height="0.1"bottomRadius="0.05"> </Cone> </Shape> </Transform> <Transform rotation="1 0 0 1.57" translation="0 0 1"> <Shape> <Appearance> <Material diffuseColor="0 0 1"> </Material> </Appearance> <Cone height="0.1"bottomRadius="0.05"> </Cone> </Shape> </Transform> </Group> </Transform> '
-    var crosshairs = angular.element(crosshairsTemplate).get(0)
+    }
+    var inlines
+    var crosshairs       = angular.element($templateCache.get('crosshairs.html')).get(0)
+    var translationGizmo = angular.element($templateCache.get('planeSensor-X.html')).get(0);
 
     var start = function(event) {
       // event.hitPnt is in global space so for this to work one would have to
