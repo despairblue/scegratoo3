@@ -15,8 +15,9 @@ angular.module('scegratooApp')
 		  z: '',
     }
     var inlines
-    var crosshairs       = angular.element($templateCache.get('crosshairs.html')).get(0)
+    var crosshairs        = angular.element($templateCache.get('crosshairs.html')).get(0)
     var translationGizmoX = angular.element($templateCache.get('planeSensor-X.html')).get(0);
+    var translationGizmoY = angular.element($templateCache.get('planeSensor-Y.html')).get(0);
 
     var start = function(event) {
       // event.hitPnt is in global space so for this to work one would have to
@@ -83,6 +84,28 @@ angular.module('scegratooApp')
           });
         }
     }
+
+    var processTranslationGizmoEventY = function(event) {
+        var sensorToWorldMatrix, translationValue;
+
+        if (event.fieldName === 'translation_changed') {
+          //convert the sensor's output from sensor coordinates to world coordinates (i.e., include its 'axisRotation')
+          sensorToWorldMatrix = $window.x3dom.fields.SFMatrix4f.parseRotation(event.target.getAttribute('axisRotation'));
+
+          translationValue = sensorToWorldMatrix.multMatrixVec(event.value);
+
+          if (options.snapToGrid) {
+            translationValue.y = Math.floor(translationValue.y)
+          }
+
+          angular.forEach(inlines, function(inline){
+            var oldTranslationValue = inline.parentNode.getFieldValue('translation')
+            oldTranslationValue.y = translationValue.y
+            inline.parentNode.setFieldValue('translation', oldTranslationValue)
+          });
+        }
+    }
+
     var setUp = function(x3dElement) {
     	var inlines = x3dElement.find('inline')
 
@@ -108,9 +131,11 @@ angular.module('scegratooApp')
 	    return options
       angular.forEach(x3dElement.find('scene'), function(scene){
         scene.appendChild(translationGizmoX)
+        scene.appendChild(translationGizmoY)
       })
 
       translationGizmoX.children[0].addEventListener('onoutputchange', processTranslationGizmoEventX)
+      translationGizmoY.children[0].addEventListener('onoutputchange', processTranslationGizmoEventY)
     }
 
     return {

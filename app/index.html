@@ -37,6 +37,23 @@
         </transform>
       </group>
     </script>
+
+    <script type="text/ng-template" id="planeSensor-Y.html">
+      <group>
+        <planeSensor autoOffset="true" axisRotation="0 1 0 -1.57" maxPosition="0 6" minPosition="0 -6"/>
+        <transform rotation="1 0 0 1.57" translation="-5 0 0">
+          <transform rotation="1 0 0 -1.57">
+            <shape>
+              <appearance DEF="GREEN">
+                <material diffuseColor="0 1 0"/>
+              </appearance>
+              <cylinder height="10" radius="0.25"/>
+            </shape>
+          </transform>
+        </transform>
+      </group>
+    </script>
+
     <script type="text/ng-template" id="crosshairs.html">
       <Transform DEF="crosshairs">
         <Group>
