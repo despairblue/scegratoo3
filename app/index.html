@@ -25,25 +25,14 @@
     <script type="text/ng-template" id="planeSensor-X.html">
       <group>
         <planeSensor autoOffset="true" axisRotation="1 0 0 -1.57" maxPosition="6 0" minPosition="-6 0"/>
-        <transform id="translationHandleTransform">
-          <transform rotation="0 1 0 1.57" translation="0 -5.5 0">
-            <transform rotation="1 0 0 1.57" translation="0 0 1.5">
-              <shape DEF="CONE_CAP">
-                <appearance DEF="BLUE">
-                  <material diffuseColor="0 0 1"/>
-                </appearance>
-                <cone height="1"/>
-              </shape>
-            </transform>
-            <transform rotation="1 0 0 -1.57">
-              <shape>
-                <appearance USE="BLUE"/>
-                <cylinder/>
-              </shape>
-            </transform>
-            <transform rotation="1 0 0 -1.57" translation="0 0 -1.5">
-              <shape USE="CONE_CAP"/>
-            </transform>
+        <transform rotation="0 1 0 1.57" translation="0 -5 0">
+          <transform rotation="1 0 0 -1.57">
+            <shape>
+              <appearance DEF="RED">
+                <material diffuseColor="1 0 0"/>
+              </appearance>
+              <cylinder height="10" radius="0.25"/>
+            </shape>
           </transform>
         </transform>
       </group>
