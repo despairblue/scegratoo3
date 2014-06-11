@@ -45,7 +45,7 @@ angular.module('scegratooApp')
     var move = function(event) {
     }
 
-    var stop = function(event) {
+    var stop = function() {
       if (crosshairs.parentNode) {
         crosshairs.parentNode.removeChild(crosshairs)
       }
