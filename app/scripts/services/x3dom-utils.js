@@ -43,19 +43,6 @@ angular.module('scegratooApp')
     }
 
     var move = function(event) {
-      var moveableTranslation = event.getAttribute('translation').split(' ')
-
-      moveableTranslation[0] = parseFloat(moveableTranslation[0]) + vecOffset.x
-      moveableTranslation[1] = parseFloat(moveableTranslation[1]) + vecOffset.y
-      moveableTranslation[2] = parseFloat(moveableTranslation[2]) + vecOffset.z
-
-      options.x = moveableTranslation[0]
-      options.y = moveableTranslation[1]
-      options.z = moveableTranslation[2]
-
-      // console.debug('moveableTranslation: %o\ntransform: %o', moveableTranslation, vecOffset.x)
-
-      // crosshairs.setAttribute('translation', moveableTranslation.join(' '))
     }
 
     var stop = function(event) {
