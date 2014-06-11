@@ -27,6 +27,7 @@ angular.module('scegratooApp')
         guiCoordinates.add(options, 'y').listen()
         guiCoordinates.add(options, 'z').listen()
         guiSwitches.add(options, 'useHitPnt')
+        guiSwitches.add(options, 'snapToGrid')
 
         scope.$watch(attrs.content, function(content) {
           element.html(content)

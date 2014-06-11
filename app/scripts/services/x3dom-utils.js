@@ -10,6 +10,7 @@ angular.module('scegratooApp')
     }
     var options = {
 		  useHitPnt: false,
+      snapToGrid: false,
 		  x: '',
 		  y: '',
 		  z: '',
