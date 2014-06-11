@@ -16,7 +16,7 @@ angular.module('scegratooApp')
     }
     var inlines
     var crosshairs       = angular.element($templateCache.get('crosshairs.html')).get(0)
-    var translationGizmo = angular.element($templateCache.get('planeSensor-X.html')).get(0);
+    var translationGizmoX = angular.element($templateCache.get('planeSensor-X.html')).get(0);
 
     var start = function(event) {
       // event.hitPnt is in global space so for this to work one would have to
@@ -63,6 +63,26 @@ angular.module('scegratooApp')
       }
     }
 
+    var processTranslationGizmoEventX = function(event) {
+        var sensorToWorldMatrix, translationValue;
+
+        if (event.fieldName === 'translation_changed') {
+          //convert the sensor's output from sensor coordinates to world coordinates (i.e., include its 'axisRotation')
+          sensorToWorldMatrix = $window.x3dom.fields.SFMatrix4f.parseRotation(event.target.getAttribute('axisRotation'));
+
+          translationValue = sensorToWorldMatrix.multMatrixVec(event.value);
+
+          if (options.snapToGrid) {
+            translationValue.x = Math.floor(translationValue.x)
+          }
+
+          angular.forEach(inlines, function(inline){
+            var oldTranslationValue = inline.parentNode.getFieldValue('translation')
+            oldTranslationValue.x = translationValue.x
+            inline.parentNode.setFieldValue('translation', oldTranslationValue)
+          });
+        }
+    }
     var setUp = function(x3dElement) {
     	var inlines = x3dElement.find('inline')
 
@@ -86,6 +106,11 @@ angular.module('scegratooApp')
 	    });
 
 	    return options
+      angular.forEach(x3dElement.find('scene'), function(scene){
+        scene.appendChild(translationGizmoX)
+      })
+
+      translationGizmoX.children[0].addEventListener('onoutputchange', processTranslationGizmoEventX)
     }
 
     return {
