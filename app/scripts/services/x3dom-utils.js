@@ -25,19 +25,26 @@ angular.module('scegratooApp')
       // runtime.getCenter(hitObject) seems to return sth in local space
       // which works
       var runtime = document.querySelector('X3D').runtime
-      // var crosshairs = document.querySelector('[DEF=crosshairs]')
       var translationString = ''
+      var inline = event.hitObject
+      var next = event.hitObject
 
-      console.debug('hitPnt:', new $window.x3dom.fields.SFVec3f(event.hitPnt[0], event.hitPnt[1], event.hitPnt[2]));
-      console.debug('center of HitObject:', runtime.getCenter(event.hitObject));
+      // find top most inline
+      while (next.nodeName.toLowerCase() !== 'scene') {
+        next = next.parentNode
+
+        if (next.nodeName.toLowerCase() === 'inline') {
+          inline = next;
+        }
+      }
 
       if (options.useHitPnt) {
         vecOffset = new $window.x3dom.fields.SFVec3f(event.hitPnt[0], event.hitPnt[1], event.hitPnt[2])
       } else {
-        vecOffset = runtime.getCenter(event.hitObject)
+        vecOffset = runtime.getCenter(inline)
       }
 
-      event.hitObject.parentNode.parentNode.appendChild(crosshairs)
+      inline.parentNode.appendChild(crosshairs)
       translationString = vecOffset.x + ' ' + vecOffset.y + ' ' + vecOffset.z
       crosshairs.setAttribute('translation', translationString)
     }
@@ -94,38 +101,39 @@ angular.module('scegratooApp')
     }
 
     var setUp = function(x3dElement) {
-    	var inlines = x3dElement.find('inline')
+      console.debug('Set up scene.')
+      inlines = x3dElement.find('inline')
 
-    	angular.forEach(inlines, function(inline){
-	      var url = inline.getAttribute('url')
-	      inline.setAttribute('url', Constants.apiRoot +
-	        '/' + 'projects' +
-	        '/' + $routeParams.project +
-	        '/' + $routeParams.file.replace(/\/[^\/]*$/, '') +
-	        '/' + url)
-	    });
+      angular.forEach(inlines, function(inline){
+        var url = inline.getAttribute('url')
+        inline.setAttribute('url', Constants.apiRoot +
+          '/' + 'projects' +
+          '/' + $routeParams.project +
+          '/' + $routeParams.file.replace(/\/[^\/]*$/, '') +
+          '/' + url)
+      });
 
-	    $window.x3dom.reload()
-
-	    angular.forEach(inlines, function(inline){
-	      inline.addEventListener('mousedown', start)
-	      inline.addEventListener('mouseup', stop)
-	      // debugger
-	      new $window.x3dom.Moveable(x3dElement.children().get(0),
-	        inline.parentElement, move, 0, 'all')
-	    });
-
-	    return options
       angular.forEach(x3dElement.find('scene'), function(scene){
         scene.appendChild(translationGizmoX)
         scene.appendChild(translationGizmoY)
       })
 
+      $window.x3dom.reload()
+
+      angular.forEach(inlines, function(inline){
+        inline.addEventListener('mousedown', start)
+        inline.addEventListener('mouseup', stop)
+        new $window.x3dom.Moveable(x3dElement.children().get(0),
+          inline.parentElement, move, 0, 'all')
+      });
+
       translationGizmoX.children[0].addEventListener('onoutputchange', processTranslationGizmoEventX)
       translationGizmoY.children[0].addEventListener('onoutputchange', processTranslationGizmoEventY)
+
+      return options
     }
 
     return {
-    	setUp: setUp
+      setUp: setUp
     }
   });
