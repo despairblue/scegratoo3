@@ -114,12 +114,12 @@ angular.module('scegratooApp')
           '/' + url)
       });
 
+      $window.x3dom.reload()
+
       angular.forEach(x3dElement.find('scene'), function(scene){
         scene.appendChild(translationGizmoX)
         scene.appendChild(translationGizmoY)
       })
-
-      $window.x3dom.reload()
 
       angular.forEach(inlines, function(inline){
         inline.addEventListener('mousedown', start)
