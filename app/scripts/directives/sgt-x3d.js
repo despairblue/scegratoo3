@@ -9,7 +9,7 @@ angular.module('scegratooApp')
       //   content: '='
       // },
       link: function postLink(scope, element, attrs) {
-        console.debug('function postLink(%o, %o, %o)', scope, element, attrs)
+        // console.debug('function postLink(%o, %o, %o)', scope, element, attrs)
 
         // extract in directive
         var gui = new $window.dat.GUI({autoPlace: false})

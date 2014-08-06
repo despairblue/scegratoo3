@@ -25,6 +25,7 @@ module.exports = function(config) {
       'app/bower_components/angular-bootstrap/ui-bootstrap-tpls.js',
       'app/scripts/**/*.js',
       'app/views/**/*.html',
+      'app/index.html',
       'test/mock/**/*.js',
       'test/spec/**/*.js'
     ],
@@ -53,7 +54,12 @@ module.exports = function(config) {
 
     ngHtml2JsPreprocessor: {
       // strip app from the file path
-      stripPrefix: 'app/'
+      stripPrefix: 'app/',
+      cacheIdFromPath: function() {
+        // If you had more than one html file you would want to do something more clever here.
+        return 'inlinetemplates';
+      },
+      moduleName: 'inlinetemplates'
     },
 
     // web server port
