@@ -30,9 +30,9 @@
     "inject": false,
     "it": false,
     "spyOn": false,
+    "$": false,
     "traceur": false
   },
-  "debug": true,
   "asi": true,
   "esnext": true
 }
