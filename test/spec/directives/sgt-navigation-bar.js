@@ -3,7 +3,8 @@
 describe('Directive: sgt-navigation-bar', function() {
 
   // load the directive's module
-  beforeEach(module('scegratooApp', 'views/directives/sgt-navigation-bar.html'))
+  beforeEach(module('scegratooApp'))
+  beforeEach(module('templates'))
 
   var element, scope
 
