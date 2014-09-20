@@ -12,11 +12,19 @@ angular.module('scegratooApp')
         // console.debug('function postLink(%o, %o, %o)', scope, element, attrs)
 
         // load templates TODO: find better way than loading them manually
-        $q.all([
-          $http.get('/templates/crosshair.html'),
-          $http.get('/templates/planeSensor-X.html'),
-          $http.get('/templates/planeSensor-Y.html'),
-        ]).then(function (results) {
+        var templates = [
+          'templates/crosshair.html',
+          'templates/planeSensor-X.html',
+          'templates/planeSensor-Y.html',
+        ]
+        var promises = []
+
+        angular.forEach(templates, function(value) {
+          if ( !$templateCache.get(value) ) {
+            promises.push($http.get('/' + value))
+          }
+        })
+        $q.all(promises).then(function (results) {
           angular.forEach(results, function(value) {
             $templateCache.put(value.config.url, value.data);
           });
