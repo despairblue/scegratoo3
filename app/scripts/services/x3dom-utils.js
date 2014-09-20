@@ -104,9 +104,9 @@ angular.module('scegratooApp')
     var setUp = function(x3dElement) {
       console.debug('Set up scene.')
 
-    crosshairs         = angular.element($templateCache.get('/templates/crosshair.html')).get(0);
-    translationGizmoX  = angular.element($templateCache.get('/templates/planeSensor-X.html')).get(0);
-    translationGizmoY  = angular.element($templateCache.get('/templates/planeSensor-Y.html')).get(0);
+    crosshairs         = angular.element($templateCache.get('templates/crosshair.html')).get(0);
+    translationGizmoX  = angular.element($templateCache.get('templates/planeSensor-X.html')).get(0);
+    translationGizmoY  = angular.element($templateCache.get('templates/planeSensor-Y.html')).get(0);
 
       inlines = x3dElement.find('inline')
 

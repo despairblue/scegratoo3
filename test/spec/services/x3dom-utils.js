@@ -1,6 +1,6 @@
 'use strict';
 
-xdescribe('Service: X3domUtils', function () {
+describe('Service: X3domUtils', function () {
   // set up global mocks
   var x3dom = function() {
     return {
@@ -11,14 +11,13 @@ xdescribe('Service: X3domUtils', function () {
 
   // load the service's module
   beforeEach(module('scegratooApp'));
+  beforeEach(module('templates'));
 
   var element
 
   // instantiate service
   var X3domUtils;
-  beforeEach(inject(function (_X3domUtils_, $window, $routeParams, $compile, $templateCache, $rootScope) {
-    var templatesHTML = $templateCache.get('inlinetemplates')
-    $compile(templatesHTML)($rootScope)
+  beforeEach(inject(function (_X3domUtils_, $window, $routeParams) {
     X3domUtils = _X3domUtils_
     // set up globals
     $window.x3dom = x3dom()
@@ -33,7 +32,7 @@ xdescribe('Service: X3domUtils', function () {
   }));
 
 
-  it('should call $window.x3dom.reload() setUp() is called', inject(function($window) {
+  it('should call $window.x3dom.reload() when setUp() is called', inject(function($window) {
     expect($window.x3dom.reload.calls.count()).toBe(0)
     X3domUtils.setUp(element);
     expect($window.x3dom.reload.calls.count()).toBe(1)
