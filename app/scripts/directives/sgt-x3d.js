@@ -12,21 +12,27 @@ angular.module('scegratooApp')
         // console.debug('function postLink(%o, %o, %o)', scope, element, attrs)
 
         // load templates TODO: find better way than loading them manually
+        //
+        // $http.get expects a leading slash, BUT
+        // the keys in the $templateCache should always omit the leading slash
+        // to work with nghtml2js for the unit tests.
+        // That explains all the regexes here.
         var templates = [
-          'templates/crosshair.html',
-          'templates/planeSensor-X.html',
-          'templates/planeSensor-Y.html',
+          '/templates/crosshair.html',
+          '/templates/planeSensor-X.html',
+          '/templates/planeSensor-Y.html',
         ]
         var promises = []
 
         angular.forEach(templates, function(value) {
-          if ( !$templateCache.get(value) ) {
-            promises.push($http.get('/' + value))
+          if ( !$templateCache.get(value.replace(/^\//, '')) ) {
+            promises.push($http.get(value))
           }
         })
         $q.all(promises).then(function (results) {
           angular.forEach(results, function(value) {
-            $templateCache.put(value.config.url, value.data);
+            // remove the starting slash again
+            $templateCache.put(value.config.url.replace(/^\//, ''), value.data);
           });
         }).then(function () {
           // extract in directive
