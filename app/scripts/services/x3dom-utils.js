@@ -16,9 +16,9 @@ angular.module('scegratooApp')
 		  z: '',
     }
     var inlines
-    var crosshairs        = angular.element($templateCache.get('crosshairs.html')).get(0)
-    var translationGizmoX = angular.element($templateCache.get('planeSensor-X.html')).get(0);
-    var translationGizmoY = angular.element($templateCache.get('planeSensor-Y.html')).get(0);
+    var crosshairs
+    var translationGizmoX
+    var translationGizmoY
 
     var start = function(event) {
       // event.hitPnt is in global space so for this to work one would have to
@@ -103,6 +103,11 @@ angular.module('scegratooApp')
 
     var setUp = function(x3dElement) {
       console.debug('Set up scene.')
+
+    crosshairs         = angular.element($templateCache.get('/templates/crosshair.html')).get(0);
+    translationGizmoX  = angular.element($templateCache.get('/templates/planeSensor-X.html')).get(0);
+    translationGizmoY  = angular.element($templateCache.get('/templates/planeSensor-Y.html')).get(0);
+
       inlines = x3dElement.find('inline')
 
       angular.forEach(inlines, function(inline){
