@@ -50,7 +50,7 @@ angular.module('scegratooApp')
       crosshairs.setAttribute('translation', translationString)
     }
 
-    var move = function(event) {
+    var move = function() {
     }
 
     var stop = function() {

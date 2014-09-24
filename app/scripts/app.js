@@ -5,7 +5,7 @@ angular.module('scegratooApp', [
   'ngResource',
   'ngSanitize',
   'ngRoute',
-  'ui.bootstrap'
+  'ui.bootstrap',
 ])
   .config(function ($routeProvider) {
     $routeProvider
