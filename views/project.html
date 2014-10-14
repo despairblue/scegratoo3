@@ -1,0 +1,13 @@
+<sgt-navigation-bar>
+</sgt-navigation-bar>
+<div class="marketing">
+  <h3>
+    Editable files for {{project.name}}
+  </h3>
+  <div ng-repeat="file in project.files | orderBy:'view'" class="row">
+    <div ng-show="file.view">
+      {{file.view}} -
+      <a href="#/projects/{{projectName}}/{{file.view}}/{{file.path}}">{{file.path}}</a>
+    </div>
+  </div>
+</div>
