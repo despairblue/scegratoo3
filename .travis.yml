@@ -1,13 +1,16 @@
 language: node_js
 node_js:
-  - '0.10'
+- '0.10'
 git:
   submodules: false
+env:
+  global:
+    secure: YyoT5uvlhjjPMuyUkyZ9i/9jl49SzGYySTgh+9LkvkBzRuDsOEk2WebRqhvSUc1fVFMMOZAQOBC46ESqg7bs4nr2sBjr1IMDmv4oFZ2ZLPLSrBlWnj+qrgPPf4cz0MaH4BMPaEf13VBKI3KeR8cchHGIeUS4fBLX42t8On0QwOU=
 before_script:
-  - 'npm install -g bower grunt-cli'
-  - 'bower install'
-  - 'gem install compass'
+- npm install -g bower grunt-cli
+- bower install
+- gem install compass
 after_success:
-  - 'git config --global user.email "autodeploy@travis.org"'
-  - 'git config --global user.name "Auto Deploy"'
-  - 'npm run-script deploy'
+- git config --global user.email 'danny.arnold@student.tu-freiberg.de'
+- git config --global user.name 'Danny Arnold'
+- npm run-script deploy-travis

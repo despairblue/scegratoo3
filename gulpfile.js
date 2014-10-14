@@ -13,11 +13,17 @@ var browserSync    = require('browser-sync')
 var mainBowerFiles = require('main-bower-files')
 var del            = require('del')
 var deploy         = require('gulp-gh-pages')
+var GH_TOKEN       = process.env.GH_TOKEN
 
 gulp.task('deploy', ['process:html', 'process:bower:css', 'process:bower:rest', 'process:api'], function () {
   return gulp.src('./dist/**/*')
+    .pipe(deploy())
+})
+
+gulp.task('deploy-travis', ['process:html', 'process:bower:css', 'process:bower:rest', 'process:api'], function () {
+  return gulp.src('./dist/**/*')
     .pipe(deploy({
-      remoteUrl: 'https://github.com/despairblue/scegratoo3.git',
+      remoteUrl: 'https://' + GH_TOKEN + '@github.com/despairblue/scegratoo3.git',
     }))
 })
 
