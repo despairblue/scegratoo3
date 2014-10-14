@@ -19,10 +19,9 @@ gulp.task('clean', function(cb) {
 });
 
 gulp.task('default', [
-  'process:styles',
-  'process:scripts',
   'process:html',
-  'process:bower',
+  'process:bower:css',
+  'process:bower:rest',
   'process:api',
   'watch'
 ])
@@ -44,7 +43,7 @@ gulp.task('process:styles', function() {
     .pipe(gulp.dest('dist/styles'))
 })
 
-gulp.task('process:html', function() {
+gulp.task('process:html', ['process:styles'], function() {
   return gulp.src('app/**/*.html')
     .pipe(usemin())
     .pipe(gulp.dest('dist'))
@@ -62,7 +61,7 @@ gulp.task('process:scripts', function() {
     .pipe(gulp.dest('dist/scripts'))
 })
 
-gulp.task('process:bower', function() {
+gulp.task('process:bower:js', function() {
   return gulp.src(mainBowerFiles({
       filter: /.*\.js/
     }))
@@ -70,7 +69,7 @@ gulp.task('process:bower', function() {
     .pipe(gulp.dest('dist/scripts'))
 })
 
-gulp.task('process:bower', function() {
+gulp.task('process:bower:css', function() {
   return gulp.src(mainBowerFiles({
     filter: /.*\.css/
   }))
@@ -78,7 +77,7 @@ gulp.task('process:bower', function() {
   .pipe(gulp.dest('dist/styles'))
 })
 
-gulp.task('process:bower', function() {
+gulp.task('process:bower:rest', function() {
   return gulp.src(mainBowerFiles({
     filter: /.*\.(?!js|css)/
   }))
