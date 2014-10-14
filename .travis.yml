@@ -8,4 +8,6 @@ before_script:
   - 'bower install'
   - 'gem install compass'
 after_success:
+  - 'git config --global user.email "autodeploy@travis.org"'
+  - 'git config --global user.name "Auto Deploy"'
   - 'npm run-script deploy'
