@@ -7,3 +7,5 @@ before_script:
   - 'npm install -g bower grunt-cli'
   - 'bower install'
   - 'gem install compass'
+after_success:
+  - 'npm run-script deploy'

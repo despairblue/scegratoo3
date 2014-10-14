@@ -60,6 +60,7 @@
   },
   "scripts": {
     "test": "grunt test:unit",
+    "deploy": "gulp deploy",
     "karma": "karma start karma.conf.js",
     "karma-chrome": "karma start karma-chrome.conf.js"
   }
