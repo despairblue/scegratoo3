@@ -11,7 +11,13 @@ var changed        = require('gulp-changed')
 var usemin         = require('gulp-usemin')
 var browserSync    = require('browser-sync')
 var mainBowerFiles = require('main-bower-files')
-var del            = require('del');
+var del            = require('del')
+var deploy         = require('gulp-gh-pages')
+
+gulp.task('deploy', ['process:html', 'process:bower:css', 'process:bower:rest', 'process:api'], function () {
+  return gulp.src('./dist/**/*')
+    .pipe(deploy())
+})
 
 gulp.task('clean', function(cb) {
   // You can use multiple globbing patterns as you would with `gulp.src`
