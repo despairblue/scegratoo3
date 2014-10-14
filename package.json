@@ -28,6 +28,7 @@
     "grunt-shell": "^0",
     "grunt-svgmin": "^0",
     "grunt-usemin": "^2",
+    "gulp": "^3.8.8",
     "gulp-autoprefixer": "^1.0.1",
     "gulp-changed": "^1.0.0",
     "gulp-concat": "^2.4.1",
