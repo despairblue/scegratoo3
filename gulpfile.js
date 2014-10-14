@@ -16,7 +16,9 @@ var deploy         = require('gulp-gh-pages')
 
 gulp.task('deploy', ['process:html', 'process:bower:css', 'process:bower:rest', 'process:api'], function () {
   return gulp.src('./dist/**/*')
-    .pipe(deploy())
+    .pipe(deploy({
+      remoteUrl: 'https://github.com/despairblue/scegratoo3.git',
+    }))
 })
 
 gulp.task('clean', function(cb) {
