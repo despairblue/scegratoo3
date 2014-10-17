@@ -62,6 +62,7 @@
   "scripts": {
     "test": "grunt test:unit",
     "deploy": "gulp deploy",
+    "watch": "gulp",
     "deploy-travis": "gulp deploy-travis",
     "karma": "karma start karma.conf.js",
     "karma-chrome": "karma start karma-chrome.conf.js"
