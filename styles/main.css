@@ -7651,7 +7651,6 @@ dfn {
 
 @media -sass-debug-info{filename{font-family:file\:\/\/\/home\/travis\/build\/despairblue\/scegratoo3\/app\/bower_components\/sass-bootstrap\/lib\/_normalize\.scss}line{font-family:\00003152}}
 hr {
-  -moz-box-sizing: content-box;
   box-sizing: content-box;
   height: 0;
 }
@@ -7773,15 +7772,13 @@ html input[disabled] {
 @media -sass-debug-info{filename{font-family:file\:\/\/\/home\/travis\/build\/despairblue\/scegratoo3\/app\/bower_components\/sass-bootstrap\/lib\/_normalize\.scss}line{font-family:\00003346}}
 input[type="checkbox"],
 input[type="radio"] {
-  -moz-box-sizing: border-box;
-       box-sizing: border-box;
+  box-sizing: border-box;
   padding: 0;
 }
 
 @media -sass-debug-info{filename{font-family:file\:\/\/\/home\/travis\/build\/despairblue\/scegratoo3\/app\/bower_components\/sass-bootstrap\/lib\/_normalize\.scss}line{font-family:\00003358}}
 input[type="search"] {
   -webkit-appearance: textfield;
-  -moz-box-sizing: content-box;
   box-sizing: content-box;
 }
 
@@ -7923,7 +7920,6 @@ table {
 *,
 *:before,
 *:after {
-  -moz-box-sizing: border-box;
   box-sizing: border-box;
 }
 
@@ -9786,7 +9782,6 @@ label {
 
 @media -sass-debug-info{filename{font-family:file\:\/\/\/home\/travis\/build\/despairblue\/scegratoo3\/app\/bower_components\/sass-bootstrap\/lib\/_forms\.scss}line{font-family:\0000338}}
 input[type="search"] {
-  -moz-box-sizing: border-box;
   box-sizing: border-box;
 }
 

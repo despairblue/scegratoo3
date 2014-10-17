@@ -371,13 +371,14 @@ angular.module('scegratooApp')
     }
 
     var setUp = function(x3dElement) {
+      var loadCount = 0
       console.debug('Set up scene.')
 
       crosshairs         = angular.element($templateCache.get('templates/crosshair.html')).get(0);
       translationGizmoX  = angular.element($templateCache.get('templates/planeSensor-X.html')).get(0);
       translationGizmoY  = angular.element($templateCache.get('templates/planeSensor-Y.html')).get(0);
 
-      inlines = x3dElement.find('inline')
+      inlines   = x3dElement.find('inline')
 
       angular.forEach(inlines, function(inline){
         var url = inline.getAttribute('url')
@@ -395,9 +396,16 @@ angular.module('scegratooApp')
         scene.appendChild(translationGizmoY)
       })
 
-      angular.forEach(inlines, function(inline){
+      angular.forEach(inlines, function(inline) {
         inline.addEventListener('mousedown', start)
         inline.addEventListener('mouseup', stop)
+        inline.addEventListener('load', function () {
+          loadCount += 1
+          if (loadCount === inlines.length && x3dElement.children().get(0) && x3dElement.children().get(0).runtime) {
+            window.x3dNode = x3dElement.children().get(0)
+            x3dElement.children().get(0).runtime.showAll()
+          }
+        })
         new $window.x3dom.Moveable(x3dElement.children().get(0),
           inline.parentElement, move, 0, 'all')
       });
