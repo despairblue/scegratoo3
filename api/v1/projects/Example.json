@@ -5,6 +5,7 @@
     "src",
     "src/bunny.x3d",
     "src/horse.x3d",
-    "src/redBox.x3d"
+    "src/redBox.x3d",
+    "src/shader.x3d"
 ]
 }
