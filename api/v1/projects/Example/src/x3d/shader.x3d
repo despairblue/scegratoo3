@@ -20,7 +20,7 @@
                       uniform mat4 modelViewProjectionMatrix;
                       uniform mat4 normalMatrix;
 
-                      varying vec3 fragNormal; 
+                      varying vec3 fragNormal;
                       varying vec3 fragEyeVector;
                       varying vec2 fragTexCoord;
 
