@@ -5,6 +5,9 @@ This Project is part of my bachelor thesis.
 ## CI Status and Code Climate
 [![Build Status](https://travis-ci.org/despairblue/scegratoo3.png?branch=master)](https://travis-ci.org/despairblue/scegratoo3) [![Code Climate](https://codeclimate.com/github/despairblue/scegratoo3.png)](https://codeclimate.com/github/despairblue/scegratoo3)
 
+## Getting Started
+An `npm install` followed by an `npm run watch` should do it.
+
 ## Goal
 
 ### Building a web based 3D composition tool.
