@@ -110,6 +110,7 @@ gulp.task('watch', function() {
     }
   });
 
+  gulp.watch('app/api/**/*', ['process:api', browserSync.reload])
   gulp.watch('app/scripts/**/*.js', ['process:scripts', browserSync.reload])
   gulp.watch('app/bower_components/**/*.js', ['process:bower', browserSync.reload])
   gulp.watch('app/styles/**/*.scss', ['process:styles', browserSync.reload])
