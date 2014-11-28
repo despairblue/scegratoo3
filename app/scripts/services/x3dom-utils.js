@@ -20,6 +20,7 @@ angular.module('scegratooApp')
     var translationGizmoX
     var translationGizmoY
     var colorCache
+    var selectionSphere
 
     var start = function(event) {
       // event.hitPnt is in global space so for this to work one would have to
@@ -28,6 +29,19 @@ angular.module('scegratooApp')
       // which works
       var translationString = ''
       var inline = angular.element(event.hitObject).lastParent('inline')
+      var bbox = inline.runtime().getBBox()
+
+      selectionSphere = angular.element(
+        '<Transform scale="' + bbox.max + '">' +
+        '<Shape>' +
+        '<Appearance>' +
+        '<Material diffuseColor="1 1 1" transparency="0.5"/>' +
+        '</Appearance>' +
+        '<Sphere />' +
+        '</Shape>' +
+        '</Transform>'
+      )
+
 
       if (options.useHitPnt) {
         vecOffset = new $window.x3dom.fields.SFVec3f(event.hitPnt[0], event.hitPnt[1], event.hitPnt[2])
@@ -48,7 +62,7 @@ angular.module('scegratooApp')
       crosshairs.setAttribute('translation', translationString)
 
       colorCache = inline.color()
-      inline.color('yellow')
+      inline.color('yellow').before(selectionSphere)
     }
 
     var move = function(event) {
@@ -62,6 +76,7 @@ angular.module('scegratooApp')
         crosshairs.parentNode.removeChild(crosshairs)
       }
 
+      selectionSphere.remove()
       inline.color(colorCache)
     }
 
