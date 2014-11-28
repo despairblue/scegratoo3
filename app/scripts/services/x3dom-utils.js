@@ -27,7 +27,7 @@ angular.module('scegratooApp')
       // runtime.getCenter(hitObject) seems to return sth in local space
       // which works
       var translationString = ''
-      var inline = x3dQuery(event.hitObject).lastParent('inline')
+      var inline = angular.element(event.hitObject).lastParent('inline')
 
       if (options.useHitPnt) {
         vecOffset = new $window.x3dom.fields.SFVec3f(event.hitPnt[0], event.hitPnt[1], event.hitPnt[2])
@@ -39,10 +39,11 @@ angular.module('scegratooApp')
         console.debug(document.getElementsByTagName('shape')[1]._x3domNode.getCenter())
 
         // on the other hand this is always null
-        vecOffset = inline.get()._x3domNode.getVolume().center
+        vecOffset = inline.get(0)._x3domNode.getVolume().center
       }
 
-      inline.get().parentNode.appendChild(crosshairs)
+      // add crosshairs
+      inline.get(0).parentNode.appendChild(crosshairs)
       translationString = vecOffset.x + ' ' + vecOffset.y + ' ' + vecOffset.z
       crosshairs.setAttribute('translation', translationString)
 
@@ -54,7 +55,7 @@ angular.module('scegratooApp')
     }
 
     var stop = function(event) {
-      var inline = x3dQuery(event.hitObject)
+      var inline = angular.element(event.hitObject).lastParent('inline')
 
       // remove the crosshair
       if (crosshairs.parentNode) {
