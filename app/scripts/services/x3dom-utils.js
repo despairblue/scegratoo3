@@ -105,6 +105,11 @@ angular.module('scegratooApp')
       var loadCount = 0
       console.debug('Set up scene.')
 
+      // fix x3dom swallowing exceptions in callback
+      $window.x3dom.debug.logException = function(e) {
+        console.error(e.stack)
+      }
+
       crosshairs         = angular.element($templateCache.get('templates/crosshair.html')).get(0);
       translationGizmoX  = angular.element($templateCache.get('templates/planeSensor-X.html')).get(0);
       translationGizmoY  = angular.element($templateCache.get('templates/planeSensor-Y.html')).get(0);

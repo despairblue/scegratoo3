@@ -5,7 +5,8 @@ describe('Service: X3domUtils', function () {
   var x3dom = function() {
     return {
       reload: function(){},
-      Moveable: function(){}
+      debug: {},
+      Moveable: function(){},
     }
   }
 
