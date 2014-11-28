@@ -270,7 +270,7 @@ if (window.__karma__) {
 'use strict';
 
 angular.module('scegratooApp')
-  .service('X3domUtils', function X3domutils($window, $routeParams, $templateCache, Constants) {
+  .service('X3domUtils', function X3domutils($window, $routeParams, $templateCache, Constants, x3dQuery) {
     // AngularJS will instantiate a singleton by calling "new" on this function
     var vecOffset = {
     	x: 0,
@@ -288,44 +288,49 @@ angular.module('scegratooApp')
     var crosshairs
     var translationGizmoX
     var translationGizmoY
+    var colorCache
 
     var start = function(event) {
       // event.hitPnt is in global space so for this to work one would have to
       // add it to the scene and translate it inside the move function.
       // runtime.getCenter(hitObject) seems to return sth in local space
       // which works
-      var runtime = document.querySelector('X3D').runtime
       var translationString = ''
-      var inline = event.hitObject
-      var next = event.hitObject
-
-      // find top most inline
-      while (next.nodeName.toLowerCase() !== 'scene') {
-        next = next.parentNode
-
-        if (next.nodeName.toLowerCase() === 'inline') {
-          inline = next;
-        }
-      }
+      var inline = x3dQuery(event.hitObject).lastParent('inline')
 
       if (options.useHitPnt) {
         vecOffset = new $window.x3dom.fields.SFVec3f(event.hitPnt[0], event.hitPnt[1], event.hitPnt[2])
       } else {
-        vecOffset = runtime.getCenter(inline)
+        // `runtime.getCenter` does not work with inlines, only with X3DShapeNode and X3DGeometryNode
+        // and even for a shape it returns always the same coordinates, so what does it actually return?
+        // TODO: test this w/o inlines.
+        // vecOffset = runtime.getCenter(inline)
+        console.debug(document.getElementsByTagName('shape')[1]._x3domNode.getCenter())
+
+        // on the other hand this is always null
+        vecOffset = inline.get()._x3domNode.getVolume().center
       }
 
-      inline.parentNode.appendChild(crosshairs)
+      inline.get().parentNode.appendChild(crosshairs)
       translationString = vecOffset.x + ' ' + vecOffset.y + ' ' + vecOffset.z
       crosshairs.setAttribute('translation', translationString)
+
+      colorCache = inline.color()
+      inline.color('yellow')
     }
 
     var move = function(event) {
     }
 
-    var stop = function() {
+    var stop = function(event) {
+      var inline = x3dQuery(event.hitObject)
+
+      // remove the crosshair
       if (crosshairs.parentNode) {
         crosshairs.parentNode.removeChild(crosshairs)
       }
+
+      inline.color(colorCache)
     }
 
     var processTranslationGizmoEventX = function(event) {
@@ -373,6 +378,11 @@ angular.module('scegratooApp')
     var setUp = function(x3dElement) {
       var loadCount = 0
       console.debug('Set up scene.')
+
+      // fix x3dom swallowing exceptions in callback
+      $window.x3dom.debug.logException = function(e) {
+        console.error(e.stack)
+      }
 
       crosshairs         = angular.element($templateCache.get('templates/crosshair.html')).get(0);
       translationGizmoX  = angular.element($templateCache.get('templates/planeSensor-X.html')).get(0);
@@ -441,3 +451,130 @@ angular.module('scegratooApp')
       createPlane: createPlane
     }
   });
+
+'use strict';
+
+angular.module('scegratooApp')
+  .service('x3dQuery', function x3dQuery() {
+    // AngularJS will instantiate a singleton by calling "new" on this function
+
+    var mixin = {
+      color: function color(clr) {
+        if (clr) {
+          if (angular.isArray(clr)) {
+            clr = angular.copy(clr)
+
+            angular.forEach(this.prestineNode.getElementsByTagName('Material'), function(material) {
+              material.diffuseColor = clr.shift()
+            })
+            angular.forEach(this.prestineNode.getElementsByTagName('material'), function(material) {
+              material.diffuseColor = clr.shift()
+            })
+
+            return this.enchantedNode
+          } else {
+            angular.forEach(this.prestineNode.getElementsByTagName('Material'), function(material) {
+              material.diffuseColor = clr
+            })
+            angular.forEach(this.prestineNode.getElementsByTagName('material'), function(material) {
+              material.diffuseColor = clr
+            })
+
+            return this.enchantedNode
+          }
+        } else {
+          var colors = []
+
+          angular.forEach(this.prestineNode.getElementsByTagName('Material'), function(material) {
+            colors.push(material.diffuseColor)
+          })
+          angular.forEach(this.prestineNode.getElementsByTagName('material'), function(material) {
+            colors.push(material.diffuseColor)
+          })
+
+          return colors
+        }
+      },
+
+      get: function get() {
+        return this.prestineNode
+      },
+
+      firstParent: function firstParent(parentName) {
+        var _firstParent
+        var next = this.prestineNode
+
+        while (next.nodeName.toLowerCase() !== '#document') {
+          next = next.parentNode
+
+          if (next.nodeName.toLowerCase() === parentName) {
+            _firstParent = next
+            break
+          }
+        }
+
+        if (_firstParent) {
+          return wrap(_firstParent)
+        } else {
+          return null
+        }
+      },
+
+      lastParent: function lastParent(parentName) {
+        var _lastParent
+        var next = this.prestineNode
+
+        while (next.nodeName.toLowerCase() !== '#document') {
+          next = next.parentNode
+
+          if (next.nodeName.toLowerCase() === parentName) {
+            _lastParent = next
+          }
+        }
+
+        if (_lastParent) {
+          return wrap(_lastParent)
+        } else {
+          return null
+        }
+      }
+    }
+
+    var wrap = function wrap(node) {
+      // only wrap dom nodes, return `node` otherwise
+      if (node.nodeType) {
+        var wrappedNode = [node]
+        var priv = {
+          prestineNode: node,
+          runtime: undefined,
+          enchantedNode: wrappedNode
+        }
+        var x3d = node
+
+        // find top most x3d
+        while (x3d.nodeName.toLowerCase() !== 'x3d') {
+          x3d = x3d.parentNode
+        }
+
+        priv.runtime = x3d.runtime
+
+        // mix in our functions and bind them to a private scope
+        angular.forEach(mixin, function(method, name) {
+          wrappedNode[name] = angular.bind(priv, method)
+        })
+
+        // mix in x3dom runtime function for that x3d node partial applying it to
+        // the node so we don't have to call `wrappedNode.getBBox(wrappedNode)`
+        // but instead just `wrappedNode.getBBox()`
+        angular.forEach(Object.getPrototypeOf(priv.runtime), function(method, name) {
+          wrappedNode[name] = angular.bind(priv.runtime, method, node)
+        })
+
+        return wrappedNode
+      } else {
+        return node
+      }
+    }
+
+    return wrap
+  })
