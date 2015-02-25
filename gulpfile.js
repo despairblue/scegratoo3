@@ -1,4 +1,6 @@
-'use strict';
+'use strict'
+
+/*eslint-env node */
 
 var gulp           = require('gulp')
 var sass           = require('gulp-ruby-sass')
@@ -14,13 +16,14 @@ var mainBowerFiles = require('main-bower-files')
 var del            = require('del')
 var deploy         = require('gulp-gh-pages')
 var GH_TOKEN       = process.env.GH_TOKEN
+var debug          = require('gulp-debug')
 
-gulp.task('deploy', ['process:html', 'process:bower:css', 'process:bower:rest', 'process:api'], function () {
+gulp.task('deploy', ['process:html', 'process:bower:css', 'process:bower:rest', 'process:api'], function() {
   return gulp.src('./dist/**/*')
     .pipe(deploy())
 })
 
-gulp.task('deploy-travis', ['process:html', 'process:bower:css', 'process:bower:rest', 'process:api'], function () {
+gulp.task('deploy-travis', ['process:html', 'process:bower:css', 'process:bower:rest', 'process:api'], function() {
   return gulp.src('./dist/**/*')
     .pipe(deploy({
       remoteUrl: 'https://' + GH_TOKEN + '@github.com/despairblue/scegratoo3.git',
@@ -29,12 +32,13 @@ gulp.task('deploy-travis', ['process:html', 'process:bower:css', 'process:bower:
 
 gulp.task('clean', function(cb) {
   // You can use multiple globbing patterns as you would with `gulp.src`
-  del(['dist'], cb);
-});
+  del(['dist'], cb)
+})
 
 gulp.task('default', [
   'process:html',
   'process:bower:css',
+  'process:bower:fonts',
   'process:bower:rest',
   'process:api',
   'watch'
@@ -44,8 +48,8 @@ gulp.task('process:styles', function() {
   return gulp.src('app/styles/*.scss')
     .pipe(changed('dist/styles'))
     .pipe(sass({
-      style: 'expanded',
-      loadPath: 'app/bower_components',
+      style:     'expanded',
+      loadPath:  'app/bower_components',
       debugInfo: true
     }))
     .pipe(autoprefixer('last 1 version'))
@@ -71,7 +75,7 @@ gulp.task('process:scripts', function() {
     .pipe(rename({
       suffix: '.min'
     }))
-    .pipe(uglify())
+    // .pipe(uglify())
     .pipe(gulp.dest('dist/scripts'))
 })
 
@@ -95,7 +99,16 @@ gulp.task('process:bower:rest', function() {
   return gulp.src(mainBowerFiles({
     filter: /.*\.(?!js|css)/
   }))
+  // .pipe(debug())
   .pipe(gulp.dest('dist'))
+})
+
+gulp.task('process:bower:fonts', function() {
+  return gulp.src(mainBowerFiles({
+    filter: /.*\.(woff|eot|svg|ttf)/
+  }))
+  // .pipe(debug())
+  .pipe(gulp.dest('dist/fonts'))
 })
 
 gulp.task('process:api', function() {
@@ -108,11 +121,15 @@ gulp.task('watch', function() {
     server: {
       baseDir: 'dist'
     }
-  });
+  })
 
+  // TODO: refactor this gulp file
+  // * get rid of usemin
+  // * run tests from gulp
+  // * don't minify and all that shit
   gulp.watch('app/api/**/*', ['process:api', browserSync.reload])
   gulp.watch('app/scripts/**/*.js', ['process:scripts', browserSync.reload])
-  gulp.watch('app/bower_components/**/*.js', ['process:bower', browserSync.reload])
+  gulp.watch('app/bower_components/**/*', ['process:bower', browserSync.reload])
   gulp.watch('app/styles/**/*.scss', ['process:styles', browserSync.reload])
   gulp.watch('app/**/*.html', ['process:html', browserSync.reload])
 })
