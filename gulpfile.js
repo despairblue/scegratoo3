@@ -45,14 +45,15 @@ gulp.task('default', [
 ])
 
 gulp.task('process:styles', function() {
-  return gulp.src('app/styles/*.scss')
-    .pipe(changed('dist/styles'))
-    .pipe(sass({
+  return sass('app/styles/', {
       style:     'expanded',
       loadPath:  'app/bower_components',
       debugInfo: true
-    }))
-    .pipe(autoprefixer('last 1 version'))
+    })
+    .on('error', function(error) {
+      console.error('Error!', error.message)
+    })
+    .pipe(autoprefixer())
     .pipe(gulp.dest('dist/styles'))
     .pipe(rename({
       suffix: '.min'
