@@ -1,6 +1,7 @@
 {
   "ecmaFeatures": {
     "arrowFunctions": true,
+    "templateStrings": true,
     "blockBindings": true,
     "forOf": true,
     "jsx": true
@@ -24,7 +25,9 @@
     "no-multi-spaces": [0],
     "no-throw-literal": [2],
     "strict": [2, "global"],
-    "global-strict": [0]
+    "global-strict": [0],
+    "no-var": [2],
+    "generator-star": [2, "start"]
   },
   "env": {
     "browser": true,
