@@ -19,9 +19,8 @@
     <!-- build:css({.tmp,dist}) styles/main.css -->
     <link rel="stylesheet" href="styles/main.css">
     <!-- endbuild -->
-    <!-- <script type="text/javascript">traceur.options.experimental = true</script> -->
   </head>
-  <body>
+  <body ng-app="scegratooApp">
     <!--[if lt IE 7]>
       <p class="browsehappy">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> to improve your experience.</p>
     <![endif]-->
@@ -54,7 +53,6 @@
     <script src="bower_components/angular-cookies/angular-cookies.js"></script>
     <script src="bower_components/angular-sanitize/angular-sanitize.js"></script>
     <script src="bower_components/angular-route/angular-route.js"></script>
-    <script src="bower_components/traceur/traceur.js"></script>
     <script src="bower_components/angular-bootstrap/ui-bootstrap-tpls.js"></script>
     <script src="bower_components/dat-gui/build/dat.gui.js"></script>
     <script src="bower_components/x3dom/x3dom.js"></script>
@@ -72,7 +70,6 @@
     <script src="scripts/controllers/projects/:project/x3d/:file.js"></script>
     <script type="module" src="scripts/directives/sgt-x3d.js"></script>
     <script src="scripts/services/constants.js"></script>
-    <script src="scripts/bootstrap.js"></script>
     <script src="scripts/services/x3dom-utils.js"></script>
     <script src="scripts/services/x3d-widgets.js"></script>
     <script src="scripts/services/x3d-query.js"></script>
