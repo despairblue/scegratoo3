@@ -17,6 +17,7 @@ var del            = require('del')
 var deploy         = require('gulp-gh-pages')
 var GH_TOKEN       = process.env.GH_TOKEN
 var debug          = require('gulp-debug')
+var babel          = require('gulp-babel')
 
 gulp.task('deploy', ['process:html', 'process:bower:css', 'process:bower:rest', 'process:api'], function() {
   return gulp.src('./dist/**/*')
@@ -71,6 +72,7 @@ gulp.task('process:html', ['process:styles'], function() {
 gulp.task('process:scripts', function() {
   return gulp.src('app/scripts/**/*.js')
     .pipe(changed('dist/scripts'))
+    .pipe(babel())
     .pipe(concat('scripts.js'))
     .pipe(gulp.dest('dist/scripts'))
     .pipe(rename({
