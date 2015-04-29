@@ -130,9 +130,101 @@ angular.module("scegratooApp").directive("sgtX3d", function ($window, $routePara
 
         scope.$watch(attrs.content, function (content) {
           element.html(content);
-          element.children().addClass("fullpage");
           options = X3domUtils.setUp(element);
         });
+      });
+    }
+  };
+});
+"use strict";
+
+var React = window.React;
+var angular = window.angular;
+var _window$R = window.R;
+var __ = _window$R.__;
+var always = _window$R.always;
+var concat = _window$R.concat;
+var curry = _window$R.curry;
+var gt = _window$R.gt;
+var identity = _window$R.identity;
+var ifElse = _window$R.ifElse;
+var isArrayLike = _window$R.isArrayLike;
+var isNil = _window$R.isNil;
+var length = _window$R.length;
+var map = _window$R.map;
+var pipe = _window$R.pipe;
+var reduce = _window$R.reduce;
+var substringTo = _window$R.substringTo;
+
+var ifNil = ifElse(isNil);
+var ensureArray = ifElse(isArrayLike, identity, always([]));
+var shorten = curry(function (maxLength, string) {
+  return ifElse(pipe(length, gt(__, maxLength)), pipe(substringTo(maxLength), concat(__, " ...")), always(string))(string);
+});
+
+angular.module("scegratooApp").directive("treeview", function () {
+  return {
+    // template: '',
+    restrict: "AE",
+    scope: {
+      data: "=",
+      id: "@"
+    },
+    link: function postLink(scope, element) {
+      var TreeNode = React.createClass({
+        displayName: "TreeNode",
+        getInitialState: function getInitialState() {
+          return {
+            children: []
+          };
+        },
+        render: function render() {
+          return React.createElement(
+            "li",
+            { ref: "node" },
+            React.createElement(
+              "a",
+              { "data-id": this.props.data.id },
+              "" + this.props.data.nodeName + ":: " + reduce(function (o, a) {
+                return "" + o + " " + a.name + ":\"" + shorten(20, a.value) + "\"";
+              }, "", ensureArray(this.props.data.attributes))
+            ),
+            React.createElement(
+              "ul",
+              null,
+              ifNil(always(undefined), map(function (child) {
+                return React.createElement(TreeNode, { data: child });
+              }))(this.props.data.children)
+            )
+          );
+        }
+      });
+
+      var TreeView = React.createClass({
+        displayName: "TreeView",
+        getDefaultProps: function () {
+          return { data: {} };
+        },
+        getInitialState: function () {
+          return { data: {} };
+        },
+        render: function render() {
+          return React.createElement(
+            "div",
+            null,
+            React.createElement(
+              "ul",
+              null,
+              React.createElement(TreeNode, { data: this.props.data })
+            )
+          );
+        }
+      });
+
+      scope.$watch("data", function () {
+        React.render(React.createElement(TreeView, {
+          data: scope.data
+        }), element[0]);
       });
     }
   };
@@ -461,20 +553,14 @@ angular.module("scegratooApp").service("X3domUtils", function X3domutils($window
 });
 "use strict";
 
-angular.module("scegratooApp").controller("ProjectsProjectX3dFileCtrl", function ($scope, $routeParams, Project) {
-  Project.get({ project: $routeParams.project, file: $routeParams.file }, function (file) {
+window.angular.module("scegratooApp").controller("ProjectsProjectX3dFileCtrl", function ($scope, $routeParams, Project) {
+  Project.get({
+    project: $routeParams.project,
+    file: $routeParams.file
+  }, function (file) {
     $scope.x3d = file.data;
+    var tree = document.createElement("div");
+    tree.innerHTML = file.data;
+    $scope.tree = tree.children[0];
   });
 });
-// x3d.get().then(function(element) {
-//   element.querySelector('inline').forEach(function(inline) {
-//     $scope.transformations.push(encapsulate(inline))
-//     inline.addEventListener('click', function(i) {
-//       $scope.currentElement = i
-//     })
-//   })
-// })
-
-// function encapsulate(inline) {
-//   console.log(inline)
-// }
