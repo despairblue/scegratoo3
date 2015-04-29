@@ -51,7 +51,6 @@ angular.module('scegratooApp')
 
           scope.$watch(attrs.content, function(content) {
             element.html(content)
-            element.children().addClass('fullpage')
             options = X3domUtils.setUp(element)
           })
         })
