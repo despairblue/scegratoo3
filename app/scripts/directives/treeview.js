@@ -3,8 +3,36 @@
 const React = window.React
 const angular = window.angular
 const {
-  map
+  __,
+  always,
+  concat,
+  curry,
+  gt,
+  identity,
+  ifElse,
+  isArrayLike,
+  isNil,
+  length,
+  map,
+  pipe,
+  reduce,
+  substringTo
 } = window.R
+const ifNil = ifElse(isNil)
+const ensureArray = ifElse(isArrayLike, identity, always([]))
+const shorten = curry((maxLength, string) => {
+  return ifElse(
+    pipe(
+      length,
+      gt(__, maxLength)
+    ),
+    pipe(
+      substringTo(maxLength),
+      concat(__, ' ...')
+    ),
+    always(string)
+  )(string)
+})
 
 angular.module('scegratooApp')
   .directive('treeview', function () {
@@ -24,19 +52,20 @@ angular.module('scegratooApp')
             }
           },
           render: function () {
-            let children = []
-
-            if (this.props.data.children) {
-              children = this.props.data.children
-            }
-
             return (
               <li ref='node'>
                 <a data-id={this.props.data.id}>
-                  {this.props.data.nodeName}
+                  {`${this.props.data.nodeName}:: ${reduce(
+                    (o, a) => `${o} ${a.name}:"${shorten(20, a.value)}"`,
+                    '',
+                    ensureArray(this.props.data.attributes)
+                  )}`}
                 </a>
                 <ul>
-                  {map(child => <TreeNode data={child}/>, children)}
+                  {ifNil(
+                    always(undefined),
+                    map(child => <TreeNode data={child}/>)
+                  )(this.props.data.children)}
                 </ul>
               </li>
             )
