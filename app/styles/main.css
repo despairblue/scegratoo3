@@ -3,9 +3,22 @@
 /*@import 'sass-bootstrap/lib/bootstrap'; */
 /*@import '_utils';*/
 
-.fullpage {
+x3d {
   width: 100%;
-  height: 100%;
+}
+
+.fullpage {
+  display: flex;
+  flex-direction: column;
+
+}
+
+.fullpage > div {
+  padding-bottom: 20px;
+}
+
+.sash {
+  margin-top: 70px;
 }
 
 .browsehappy {
@@ -13,19 +26,4 @@
     background: hsla(0, 0%, 80%, 1);
     color: hsla(0, 0%, 0%, 1);
     padding: 0.2em 0;
-}
-
-html {
-  height: 100%;
-
-  /* Space out content a bit */
-  body {
-    padding-top: 70px;
-    padding-bottom: 20px;
-    height: 100%;
-
-    .container {
-      height: 100%
-    }
-  }
 }
