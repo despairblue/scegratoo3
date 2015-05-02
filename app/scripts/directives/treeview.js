@@ -1,41 +1,41 @@
 'use strict'
 
-const React = window.React
 const angular = window.angular
-const {
-  __,
-  always,
-  concat,
-  curry,
-  gt,
-  identity,
-  ifElse,
-  isArrayLike,
-  isNil,
-  length,
-  map,
-  pipe,
-  reduce,
-  substringTo
-} = window.R
-const ifNil = ifElse(isNil)
-const ensureArray = ifElse(isArrayLike, identity, always([]))
-const shorten = curry((maxLength, string) => {
-  return ifElse(
-    pipe(
-      length,
-      gt(__, maxLength)
-    ),
-    pipe(
-      substringTo(maxLength),
-      concat(__, ' ...')
-    ),
-    always(string)
-  )(string)
-})
 
 angular.module('scegratooApp')
-  .directive('treeview', function () {
+  .directive('treeview', function (R, React) {
+    const {
+      __,
+      always,
+      concat,
+      curry,
+      gt,
+      identity,
+      ifElse,
+      isArrayLike,
+      isNil,
+      length,
+      map,
+      pipe,
+      reduce,
+      substringTo
+    } = R
+    const ifNil = ifElse(isNil)
+    const ensureArray = ifElse(isArrayLike, identity, always([]))
+    const shorten = curry((maxLength, string) => {
+      return ifElse(
+        pipe(
+          length,
+          gt(__, maxLength)
+        ),
+        pipe(
+          substringTo(maxLength),
+          concat(__, ' ...')
+        ),
+        always(string)
+      )(string)
+    })
+
     return {
       // template: '',
       restrict: 'AE',
