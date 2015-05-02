@@ -1,45 +1,42 @@
-'use strict';
+'use strict'
+
+const angular = window.angular
+const $ = window.$
 
 angular.module('scegratooApp')
-  .directive('sgtX3d', function ($window, $routeParams, Constants, X3domUtils, $http, $q, $templateCache) {
+  .directive('sgtX3d', function SgtX3d ($window, $routeParams, Constants, X3domUtils, $http, $q, $templateCache) {
     return {
-      // template: '',
       restrict: 'AE',
-      // scope: {
-      //   content: '='
-      // },
-      link: function postLink(scope, element, attrs) {
-        // console.debug('function postLink(%o, %o, %o)', scope, element, attrs)
-
+      link: (scope, element, attrs) => {
         // load templates TODO: find better way than loading them manually
         var templates = [
           'templates/crosshair.html',
           'templates/planeSensor-X.html',
-          'templates/planeSensor-Y.html',
+          'templates/planeSensor-Y.html'
         ]
         var promises = []
 
-        angular.forEach(templates, function(value) {
-            promises.push($http.get(value, {cache: $templateCache}))
+        angular.forEach(templates, value => {
+          promises.push($http.get(value, {cache: $templateCache}))
         })
 
-        $q.all(promises).then(function (results) {
+        $q.all(promises).then(results => {
           // Normally this would be enough, but we want to make sure that the
           // cached value is only the template and not the whole response object
           // with status code, header, etc
-          angular.forEach(results, function(value) {
-            $templateCache.put(value.config.url, value.data);
-          });
-        }).then(function () {
+          angular.forEach(results, value => {
+            $templateCache.put(value.config.url, value.data)
+          })
+        }).then(() => {
           // extract in directive
           var gui = new $window.dat.GUI({autoPlace: false})
-          console.debug('Created ', gui);
+          console.debug('Created ', gui)
           element.parent().prepend($(gui.domElement)
-            .css('float', 'left')
-            .css('position', 'absolute')
-            .css('z-index', 1))
+          .css('float', 'left')
+          .css('position', 'absolute')
+          .css('z-index', 1))
           var guiCoordinates = gui.addFolder('Coordinates')
-          var guiSwitches    = gui.addFolder('Switches')
+          var guiSwitches = gui.addFolder('Switches')
 
           var options = X3domUtils.setUp(element)
 
@@ -49,11 +46,11 @@ angular.module('scegratooApp')
           guiSwitches.add(options, 'useHitPnt')
           guiSwitches.add(options, 'snapToGrid')
 
-          scope.$watch(attrs.content, function(content) {
+          scope.$watch(attrs.content, content => {
             element.html(content)
             options = X3domUtils.setUp(element)
           })
         })
       }
-    };
-  });
+    }
+  })
