@@ -4,7 +4,7 @@ const angular = window.angular
 const $ = window.$
 
 angular.module('scegratooApp')
-  .directive('sgtX3d', function SgtX3d ($window, X3domUtils, $http, $q, $templateCache) {
+  .directive('sgtX3d', function SgtX3d ($window, X3domUtils, $http, $q, $templateCache, React, TreeView, _) {
     return {
       restrict: 'AE',
       link: (scope, element, attrs) => {
@@ -26,6 +26,9 @@ angular.module('scegratooApp')
             })
           })
           .then(() => {
+            const div = $(document.createElement('div'))
+            const div2 = $(document.createElement('div'))
+
             // extract in directive
             var gui = new $window.dat.GUI({autoPlace: false})
             console.debug('Created ', gui)
@@ -36,7 +39,7 @@ angular.module('scegratooApp')
             var guiCoordinates = gui.addFolder('Coordinates')
             var guiSwitches = gui.addFolder('Switches')
 
-            var options = X3domUtils.setUp(element)
+            var options = X3domUtils.setUp(div)
 
             guiCoordinates.add(options, 'x').listen()
             guiCoordinates.add(options, 'y').listen()
@@ -44,9 +47,44 @@ angular.module('scegratooApp')
             guiSwitches.add(options, 'useHitPnt')
             guiSwitches.add(options, 'snapToGrid')
 
+            element.append(div)
+            element.append(div2)
+
+            // styling
+            element.addClass('fullpage')
+
             scope.$watch(attrs.content, content => {
-              element.html(content)
-              options = X3domUtils.setUp(element)
+              div.html(content)
+
+              const tree = React.createElement(
+                TreeView,
+                {
+                  data: div.find('scene').get(0)
+                }
+              )
+              const rerender = _.throttle(React.render, 100)
+              const x3dObserver = new window.MutationObserver(mutations => {
+                mutations.forEach(mutation => {
+                  if (mutation.type === 'attributes') {
+                    if (['style', 'class'].some(name => name === mutation.attributeName)) {
+
+                    } else if (['translation', 'rotation'].some(name => name === mutation.attributeName)) {
+                      rerender(tree, div2.get(0))
+                    } else {
+                      console.log(mutation)
+                    }
+                  }
+                })
+              })
+
+              x3dObserver.observe(div.get(0), {
+                attributes: true,
+                childList: true,
+                subtree: true
+              })
+
+              React.render(tree, div2.get(0))
+              options = X3domUtils.setUp(div)
             })
           })
       }
