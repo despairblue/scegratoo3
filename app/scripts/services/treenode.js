@@ -46,10 +46,13 @@ window.angular.module('scegratooApp')
           children: []
         }
       },
+      clicked: function (event) {
+        this.props.runtime.showObject(this.props.data, 'xAxis')
+      },
       render: function () {
         return (
           <li ref='node'>
-            <a data-id={this.props.data.id}>
+            <a data-id={this.props.data.id} onClick={this.clicked}>
               {`<${this.props.data.nodeName}>`}
               <br/>
               {map(
@@ -63,7 +66,7 @@ window.angular.module('scegratooApp')
             {unlessInline(node =>
               <ul>
                 {map(child =>
-                  <TreeNode data={child}/>
+                  <TreeNode data={child} runtime={this.props.runtime}/>
                 )(node.children)}
               </ul>
             )(this.props.data)}

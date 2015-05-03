@@ -59,7 +59,7 @@ angular.module('scegratooApp')
               const tree = React.createElement(
                 TreeView,
                 {
-                  data: div.find('scene').get(0)
+                  data: div.find('x3d').get(0)
                 }
               )
               const rerender = _.throttle(React.render, 100)
