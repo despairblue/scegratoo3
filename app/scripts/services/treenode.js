@@ -7,19 +7,24 @@ window.angular.module('scegratooApp')
       always,
       concat,
       curry,
+      eq,
       gt,
-      identity,
       ifElse,
-      isArrayLike,
-      isNil,
       length,
       map,
       pipe,
-      reduce,
-      substringTo
+      prop,
+      substringTo,
+      toLower
     } = R
-    const ifNil = ifElse(isNil)
-    const ensureArray = ifElse(isArrayLike, identity, always([]))
+    const unlessInline = ifElse(
+      pipe(
+        prop('nodeName'),
+        toLower,
+        eq('inline')
+      ),
+      always(undefined)
+    )
     const shorten = curry((maxLength, string) => {
       return ifElse(
         pipe(
@@ -45,18 +50,23 @@ window.angular.module('scegratooApp')
         return (
           <li ref='node'>
             <a data-id={this.props.data.id}>
-              {`${this.props.data.nodeName}:: ${reduce(
-                (o, a) => `${o} ${a.name}:"${shorten(20, a.value)}"`,
-                '',
-                ensureArray(this.props.data.attributes)
-              )}`}
+              {`<${this.props.data.nodeName}>`}
+              <br/>
+              {map(
+                a => [
+                  `${a.name}: "${shorten(20, a.value)}"`,
+                  <br/>
+                ],
+                this.props.data.attributes
+              )}
             </a>
-            <ul>
-              {ifNil(
-                always(undefined),
-                map(child => <TreeNode data={child}/>)
-              )(this.props.data.children)}
-            </ul>
+            {unlessInline(node =>
+              <ul>
+                {map(child =>
+                  <TreeNode data={child}/>
+                )(node.children)}
+              </ul>
+            )(this.props.data)}
           </li>
         )
       }
