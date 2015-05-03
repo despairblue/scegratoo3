@@ -111,10 +111,6 @@
 		  </IndexedLineSet>
 		</Shape>
 
-		<!-- TODO: implement plan as directive -->
-		<BlenderPlane>
-		</BlenderPlane>
-
 		<!-- id=8d3f0a8a-b6d7-4acc-922b-ea59364443fa -->
 		<Group DEF="G1">
 			<Transform DEF="generatedTransform3" scale="1 1 1" rotation="0 0 1 0" translation="0 0 0">

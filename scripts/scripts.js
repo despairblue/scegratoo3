@@ -87,32 +87,30 @@ angular.module("scegratooApp").directive("sgtNavigationBar", function () {
 });
 "use strict";
 
-angular.module("scegratooApp").directive("sgtX3d", function ($window, $routeParams, Constants, X3domUtils, $http, $q, $templateCache) {
-  return {
-    // template: '',
-    restrict: "AE",
-    // scope: {
-    //   content: '='
-    // },
-    link: function postLink(scope, element, attrs) {
-      // console.debug('function postLink(%o, %o, %o)', scope, element, attrs)
+var angular = window.angular;
+var $ = window.$;
 
+angular.module("scegratooApp").directive("sgtX3d", function SgtX3d($window, X3domUtils, $http, $q, $templateCache, React, TreeView, _) {
+  return {
+    restrict: "AE",
+    link: function (scope, element, attrs) {
       // load templates TODO: find better way than loading them manually
       var templates = ["templates/crosshair.html", "templates/planeSensor-X.html", "templates/planeSensor-Y.html"];
-      var promises = [];
-
-      angular.forEach(templates, function (value) {
-        promises.push($http.get(value, { cache: $templateCache }));
+      var promises = templates.map(function (value) {
+        return $http.get(value, { cache: $templateCache });
       });
 
       $q.all(promises).then(function (results) {
         // Normally this would be enough, but we want to make sure that the
         // cached value is only the template and not the whole response object
         // with status code, header, etc
-        angular.forEach(results, function (value) {
+        results.forEach(function (value) {
           $templateCache.put(value.config.url, value.data);
         });
       }).then(function () {
+        var div = $(document.createElement("div"));
+        var div2 = $(document.createElement("div"));
+
         // extract in directive
         var gui = new $window.dat.GUI({ autoPlace: false });
         console.debug("Created ", gui);
@@ -120,7 +118,7 @@ angular.module("scegratooApp").directive("sgtX3d", function ($window, $routePara
         var guiCoordinates = gui.addFolder("Coordinates");
         var guiSwitches = gui.addFolder("Switches");
 
-        var options = X3domUtils.setUp(element);
+        var options = X3domUtils.setUp(div);
 
         guiCoordinates.add(options, "x").listen();
         guiCoordinates.add(options, "y").listen();
@@ -128,9 +126,43 @@ angular.module("scegratooApp").directive("sgtX3d", function ($window, $routePara
         guiSwitches.add(options, "useHitPnt");
         guiSwitches.add(options, "snapToGrid");
 
+        element.append(div);
+        element.append(div2);
+
+        // styling
+        element.addClass("fullpage");
+
         scope.$watch(attrs.content, function (content) {
-          element.html(content);
-          options = X3domUtils.setUp(element);
+          div.html(content);
+
+          var tree = React.createElement(TreeView, {
+            data: div.find("x3d").get(0)
+          });
+          var rerender = _.throttle(React.render, 100);
+          var x3dObserver = new window.MutationObserver(function (mutations) {
+            mutations.forEach(function (mutation) {
+              if (mutation.type === "attributes") {
+                if (["style", "class", "width", "height"].some(function (name) {
+                  return name === mutation.attributeName;
+                })) {} else if (["translation", "rotation", "diffuseColor"].some(function (name) {
+                  return name === mutation.attributeName;
+                })) {
+                  rerender(tree, div2.get(0));
+                } else {
+                  console.log(mutation.attributeName);
+                }
+              }
+            });
+          });
+
+          x3dObserver.observe(div.get(0), {
+            attributes: true,
+            childList: true,
+            subtree: true
+          });
+
+          React.render(tree, div2.get(0));
+          options = X3domUtils.setUp(div);
         });
       });
     }
@@ -138,31 +170,9 @@ angular.module("scegratooApp").directive("sgtX3d", function ($window, $routePara
 });
 "use strict";
 
-var React = window.React;
 var angular = window.angular;
-var _window$R = window.R;
-var __ = _window$R.__;
-var always = _window$R.always;
-var concat = _window$R.concat;
-var curry = _window$R.curry;
-var gt = _window$R.gt;
-var identity = _window$R.identity;
-var ifElse = _window$R.ifElse;
-var isArrayLike = _window$R.isArrayLike;
-var isNil = _window$R.isNil;
-var length = _window$R.length;
-var map = _window$R.map;
-var pipe = _window$R.pipe;
-var reduce = _window$R.reduce;
-var substringTo = _window$R.substringTo;
 
-var ifNil = ifElse(isNil);
-var ensureArray = ifElse(isArrayLike, identity, always([]));
-var shorten = curry(function (maxLength, string) {
-  return ifElse(pipe(length, gt(__, maxLength)), pipe(substringTo(maxLength), concat(__, " ...")), always(string))(string);
-});
-
-angular.module("scegratooApp").directive("treeview", function () {
+angular.module("scegratooApp").directive("treeview", function (React, TreeView) {
   return {
     // template: '',
     restrict: "AE",
@@ -171,56 +181,6 @@ angular.module("scegratooApp").directive("treeview", function () {
       id: "@"
     },
     link: function postLink(scope, element) {
-      var TreeNode = React.createClass({
-        displayName: "TreeNode",
-        getInitialState: function getInitialState() {
-          return {
-            children: []
-          };
-        },
-        render: function render() {
-          return React.createElement(
-            "li",
-            { ref: "node" },
-            React.createElement(
-              "a",
-              { "data-id": this.props.data.id },
-              "" + this.props.data.nodeName + ":: " + reduce(function (o, a) {
-                return "" + o + " " + a.name + ":\"" + shorten(20, a.value) + "\"";
-              }, "", ensureArray(this.props.data.attributes))
-            ),
-            React.createElement(
-              "ul",
-              null,
-              ifNil(always(undefined), map(function (child) {
-                return React.createElement(TreeNode, { data: child });
-              }))(this.props.data.children)
-            )
-          );
-        }
-      });
-
-      var TreeView = React.createClass({
-        displayName: "TreeView",
-        getDefaultProps: function () {
-          return { data: {} };
-        },
-        getInitialState: function () {
-          return { data: {} };
-        },
-        render: function render() {
-          return React.createElement(
-            "div",
-            null,
-            React.createElement(
-              "ul",
-              null,
-              React.createElement(TreeNode, { data: this.props.data })
-            )
-          );
-        }
-      });
-
       scope.$watch("data", function () {
         React.render(React.createElement(TreeView, {
           data: scope.data
@@ -231,36 +191,29 @@ angular.module("scegratooApp").directive("treeview", function () {
 });
 "use strict";
 
-angular.module("scegratooApp").value("catalog", [{
-  id: 1,
-  name: "Batarang",
-  img: "images/yeoman.png",
-  price: 80
-}, {
-  id: 2,
-  name: "Utility Belt",
-  img: "images/yeoman.png",
-  price: 120
-}]);
-"use strict";
-
-angular.module("scegratooApp").value("Constants", {
+window.angular.module("scegratooApp").value("Constants", {
   apiRoot: "api/v1"
 });
 "use strict";
 
-angular.module("scegratooApp").service("Project", function Project($resource, $http, Constants) {
+window.angular.module("scegratooApp").value("_", window._);
+"use strict";
+
+window.angular.module("scegratooApp").service("Project", function Project($resource, $http, Constants) {
   // AngularJS will instantiate a singleton by calling "new" on this function
   var route = Constants.apiRoot + "/projects/:project.:format";
   var resource = $resource(route, { format: "json" });
   return {
-    get: function get(params, fn) {
+    get: function (params, fn) {
       if (params.file) {
         var url = [Constants.apiRoot, "projects", encodeURI(params.project), encodeURI(params.file)].join("/");
         var res = $resource(url, {}, {
-          get: { method: "GET", transformResponse: function transformResponse(data) {
+          get: {
+            method: "GET",
+            transformResponse: function (data) {
               return { data: data };
-            } }
+            }
+          }
         });
         return res.get(fn);
       } else {
@@ -278,6 +231,108 @@ angular.module("scegratooApp").service("Project", function Project($resource, $h
     //   return $http.get(url)
     // }
   };
+});
+"use strict";
+
+/**
+ * @ngdoc service
+ * @name scegratooApp.R
+ * @description
+ * # R
+ * Value in the scegratooApp.
+ */
+window.angular.module("scegratooApp").value("R", window.R);
+"use strict";
+
+window.angular.module("scegratooApp").value("React", window.React);
+"use strict";
+
+window.angular.module("scegratooApp").service("TreeNode", function Project(React, R) {
+  var __ = R.__;
+  var always = R.always;
+  var concat = R.concat;
+  var curry = R.curry;
+  var eq = R.eq;
+  var filter = R.filter;
+  var contains = R.contains;
+  var gt = R.gt;
+  var ifElse = R.ifElse;
+  var length = R.length;
+  var map = R.map;
+  var pipe = R.pipe;
+  var prop = R.prop;
+  var substringTo = R.substringTo;
+  var toLower = R.toLower;
+
+  var unlessInline = ifElse(pipe(prop("nodeName"), toLower, eq("inline")), always(undefined));
+  var shorten = curry(function (maxLength, string) {
+    return ifElse(pipe(length, gt(__, maxLength)), pipe(substringTo(maxLength), concat(__, " ...")), always(string))(string);
+  });
+
+  var TreeNode = React.createClass({
+    displayName: "TreeNode",
+    clicked: function clicked(event) {
+      this.props.runtime.showObject(this.props.data, "xAxis");
+    },
+    render: function render() {
+      var _this = this;
+
+      return React.createElement(
+        "li",
+        { ref: "node" },
+        React.createElement(
+          "a",
+          { "data-id": this.props.data.id, onClick: this.clicked },
+          "<" + this.props.data.nodeName + ">",
+          React.createElement("br", null),
+          map(function (a) {
+            return ["" + a.name + ": \"" + shorten(20, a.value) + "\"", React.createElement("br", null)];
+          }, filter(pipe(prop("name"), toLower, contains(__, ["translation", "rotation", "diffusecolor"])), this.props.data.attributes))
+        ),
+        unlessInline(function (node) {
+          return React.createElement(
+            "ul",
+            null,
+            map(function (child) {
+              return React.createElement(TreeNode, {
+                data: child,
+                runtime: _this.props.runtime
+              });
+            })(node.children)
+          );
+        })(this.props.data)
+      );
+    }
+  });
+
+  return TreeNode;
+});
+"use strict";
+
+window.angular.module("scegratooApp").service("TreeView", function Project(React, TreeNode) {
+  return React.createClass({
+    displayName: "TreeView",
+    getDefaultProps: function () {
+      return {
+        data: {},
+        runtime: {}
+      };
+    },
+    render: function render() {
+      return React.createElement(
+        "div",
+        null,
+        React.createElement(
+          "ul",
+          null,
+          React.createElement(TreeNode, {
+            data: this.props.data.querySelector("scene"),
+            runtime: this.props.data.runtime
+          })
+        )
+      );
+    }
+  });
 });
 "use strict";
 
@@ -391,18 +446,22 @@ angular.module("scegratooApp").service("X3dWidgets", function X3dWidgets() {
 });
 "use strict";
 
+var angular = window.angular;
+
 angular.module("scegratooApp").service("X3domUtils", function X3domutils($window, $routeParams, $templateCache, x3dQuery, Constants) {
   // AngularJS will instantiate a singleton by calling "new" on this function
   var vecOffset = {
     x: 0,
     y: 0,
-    z: 0 };
+    z: 0
+  };
   var options = {
     useHitPnt: false,
     snapToGrid: false,
     x: "",
     y: "",
-    z: "" };
+    z: ""
+  };
   var inlines = undefined;
   var crosshairs = undefined;
   var translationGizmoX = undefined;
@@ -462,7 +521,7 @@ angular.module("scegratooApp").service("X3domUtils", function X3domutils($window
     var translationValue = undefined;
 
     if (event.fieldName === "translation_changed") {
-      //convert the sensor's output from sensor coordinates to world coordinates (i.e., include its 'axisRotation')
+      // convert the sensor's output from sensor coordinates to world coordinates (i.e., include its 'axisRotation')
       sensorToWorldMatrix = $window.x3dom.fields.SFMatrix4f.parseRotation(event.target.getAttribute("axisRotation"));
 
       translationValue = sensorToWorldMatrix.multMatrixVec(event.value);
@@ -484,7 +543,7 @@ angular.module("scegratooApp").service("X3domUtils", function X3domutils($window
     var translationValue = undefined;
 
     if (event.fieldName === "translation_changed") {
-      //convert the sensor's output from sensor coordinates to world coordinates (i.e., include its 'axisRotation')
+      // convert the sensor's output from sensor coordinates to world coordinates (i.e., include its 'axisRotation')
       sensorToWorldMatrix = $window.x3dom.fields.SFMatrix4f.parseRotation(event.target.getAttribute("axisRotation"));
 
       translationValue = sensorToWorldMatrix.multMatrixVec(event.value);
@@ -553,7 +612,9 @@ angular.module("scegratooApp").service("X3domUtils", function X3domutils($window
 });
 "use strict";
 
-window.angular.module("scegratooApp").controller("ProjectsProjectX3dFileCtrl", function ($scope, $routeParams, Project) {
+var angular = window.angular;
+
+angular.module("scegratooApp").controller("ProjectsProjectX3dFileCtrl", function ($scope, $routeParams, Project) {
   Project.get({
     project: $routeParams.project,
     file: $routeParams.file

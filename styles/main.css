@@ -17,6 +17,10 @@ x3d {
   padding-bottom: 20px;
 }
 
+a {
+  cursor: pointer;
+}
+
 .sash {
   margin-top: 70px;
 }
