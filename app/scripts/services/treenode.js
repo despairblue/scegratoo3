@@ -8,6 +8,8 @@ window.angular.module('scegratooApp')
       concat,
       curry,
       eq,
+      filter,
+      contains,
       gt,
       ifElse,
       length,
@@ -55,13 +57,23 @@ window.angular.module('scegratooApp')
                   `${a.name}: "${shorten(20, a.value)}"`,
                   <br/>
                 ],
-                this.props.data.attributes
+                filter(
+                  pipe(
+                    prop('name'),
+                    toLower,
+                    contains(__, ['translation', 'rotation', 'diffusecolor'])
+                  ),
+                  this.props.data.attributes
+                )
               )}
             </a>
             {unlessInline(node =>
               <ul>
                 {map(child =>
-                  <TreeNode data={child} runtime={this.props.runtime}/>
+                  <TreeNode
+                    data={child}
+                    runtime={this.props.runtime}
+                  />
                 )(node.children)}
               </ul>
             )(this.props.data)}

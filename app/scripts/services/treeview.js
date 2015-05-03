@@ -12,7 +12,10 @@ window.angular.module('scegratooApp')
         return (
           <div>
             <ul>
-              <TreeNode data={this.props.data.querySelector('scene')} runtime={this.props.data.runtime} />
+              <TreeNode
+                data={this.props.data.querySelector('scene')}
+                runtime={this.props.data.runtime}
+              />
             </ul>
           </div>
         )
