@@ -66,7 +66,7 @@ angular.module('scegratooApp')
               const x3dObserver = new window.MutationObserver(mutations => {
                 mutations.forEach(mutation => {
                   if (mutation.type === 'attributes') {
-                    if (['style', 'class'].some(name => name === mutation.attributeName)) {
+                    if (['style', 'class', 'width', 'height'].some(name => name === mutation.attributeName)) {
 
                     } else if (['translation', 'rotation', 'diffuseColor'].some(name => name === mutation.attributeName)) {
                       rerender(tree, div2.get(0))
