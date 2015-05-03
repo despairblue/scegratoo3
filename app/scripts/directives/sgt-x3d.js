@@ -68,10 +68,10 @@ angular.module('scegratooApp')
                   if (mutation.type === 'attributes') {
                     if (['style', 'class'].some(name => name === mutation.attributeName)) {
 
-                    } else if (['translation', 'rotation'].some(name => name === mutation.attributeName)) {
+                    } else if (['translation', 'rotation', 'diffuseColor'].some(name => name === mutation.attributeName)) {
                       rerender(tree, div2.get(0))
                     } else {
-                      console.log(mutation)
+                      console.log(mutation.attributeName)
                     }
                   }
                 })
