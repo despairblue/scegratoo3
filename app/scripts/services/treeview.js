@@ -4,7 +4,6 @@ window.angular.module('scegratooApp')
   .service('TreeView', function Project (React, TreeNode) {
     return React.createClass({
       displayName: 'TreeView',
-      getInitialState: () => ({data: {}}),
       getDefaultProps: () => ({
         data: {},
         runtime: {}
