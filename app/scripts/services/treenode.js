@@ -43,6 +43,10 @@ window.angular.module('scegratooApp')
 
     const TreeNode = React.createClass({
       displayName: 'TreeNode',
+      propTypes: {
+        data: React.PropTypes.object.isRequired,
+        runtime: React.PropTypes.object.isRequired
+      },
       clicked: function (event) {
         this.props.runtime.showObject(this.props.data, 'xAxis')
       },
