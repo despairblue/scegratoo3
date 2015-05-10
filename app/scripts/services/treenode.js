@@ -65,7 +65,7 @@ window.angular.module('scegratooApp')
                   pipe(
                     prop('name'),
                     toLower,
-                    contains(__, ['translation', 'rotation', 'diffusecolor'])
+                    contains(__, ['translation', 'rotation', 'diffusecolor', 'def', 'render'])
                   ),
                   this.props.data.attributes
                 )
