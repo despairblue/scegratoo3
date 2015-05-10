@@ -5,11 +5,12 @@ window.angular.module('scegratooApp')
     const {
       __,
       always,
+      complement,
       concat,
+      contains,
       curry,
       eq,
       filter,
-      contains,
       gt,
       ifElse,
       length,
@@ -19,12 +20,18 @@ window.angular.module('scegratooApp')
       substringTo,
       toLower
     } = R
-    const unlessInline = ifElse(
-      pipe(
+    const isInline = pipe(
         prop('nodeName'),
         toLower,
         eq('inline')
-      ),
+    )
+    const isGUI = pipe(
+      prop('className'),
+      toLower,
+      eq('gui')
+    )
+    const unlessInline = ifElse(
+      isInline,
       always(undefined)
     )
     const shorten = curry((maxLength, string) => {
@@ -51,10 +58,14 @@ window.angular.module('scegratooApp')
         this.props.runtime.showObject(this.props.data, 'xAxis')
       },
       render: function () {
+        const node = this.props.data
+        const runtime = this.props.runtime
+        const children = filter(complement(isGUI), node.children)
+
         return (
           <li ref='node'>
-            <a data-id={this.props.data.id} onClick={this.clicked}>
-              {`<${this.props.data.nodeName}>`}
+            <a data-id={node.id} onClick={this.clicked}>
+              {`<${node.nodeName}>`}
               <br/>
               {map(
                 a => [
@@ -65,9 +76,9 @@ window.angular.module('scegratooApp')
                   pipe(
                     prop('name'),
                     toLower,
-                    contains(__, ['translation', 'rotation', 'diffusecolor', 'def', 'render'])
+                    contains(__, ['translation', 'rotation', 'diffusecolor', 'def', 'render', 'class'])
                   ),
-                  this.props.data.attributes
+                  node.attributes
                 )
               )}
             </a>
@@ -76,11 +87,11 @@ window.angular.module('scegratooApp')
                 {map(child =>
                   <TreeNode
                     data={child}
-                    runtime={this.props.runtime}
+                    runtime={runtime}
                   />
-                )(node.children)}
+                )(children)}
               </ul>
-            )(this.props.data)}
+            )(node)}
           </li>
         )
       }

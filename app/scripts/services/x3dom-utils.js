@@ -34,7 +34,7 @@ angular.module('scegratooApp')
       const bbox = inline.runtime().getBBox()
 
       selectionSphere = angular.element(`
-        <Transform scale="${bbox.max}">
+        <Transform scale="${bbox.max}" class='gui'>
           <Shape>
             <Appearance>
               <Material diffuseColor="1 1 1" transparency="0.5"/>
