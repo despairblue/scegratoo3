@@ -144,7 +144,7 @@ angular.module("scegratooApp").directive("sgtX3d", function SgtX3d($window, X3do
               if (mutation.type === "attributes") {
                 if (["style", "class", "width", "height"].some(function (name) {
                   return name === mutation.attributeName;
-                })) {} else if (["translation", "rotation", "diffuseColor"].some(function (name) {
+                })) {} else if (["translation", "rotation", "diffuseColor", "render"].some(function (name) {
                   return name === mutation.attributeName;
                 })) {
                   rerender(tree, div2.get(0));
@@ -247,48 +247,50 @@ window.angular.module("scegratooApp").value("R", window.R);
 window.angular.module("scegratooApp").value("React", window.React);
 "use strict";
 
-window.angular.module("scegratooApp").service("TreeNode", function Project(React, R) {
+window.angular.module("scegratooApp").service("TreeNode", function Project(React, R, TreeNodeAttribute) {
   var __ = R.__;
   var always = R.always;
-  var concat = R.concat;
-  var curry = R.curry;
+  var complement = R.complement;
+  var contains = R.contains;
   var eq = R.eq;
   var filter = R.filter;
-  var contains = R.contains;
-  var gt = R.gt;
   var ifElse = R.ifElse;
-  var length = R.length;
   var map = R.map;
   var pipe = R.pipe;
   var prop = R.prop;
-  var substringTo = R.substringTo;
   var toLower = R.toLower;
 
-  var unlessInline = ifElse(pipe(prop("nodeName"), toLower, eq("inline")), always(undefined));
-  var shorten = curry(function (maxLength, string) {
-    return ifElse(pipe(length, gt(__, maxLength)), pipe(substringTo(maxLength), concat(__, " ...")), always(string))(string);
-  });
+  var isInline = pipe(prop("nodeName"), toLower, eq("inline"));
+  var isGUI = pipe(prop("className"), toLower, eq("gui"));
+  var unlessInline = ifElse(isInline, always(undefined));
 
   var TreeNode = React.createClass({
     displayName: "TreeNode",
+    propTypes: {
+      data: React.PropTypes.object.isRequired,
+      runtime: React.PropTypes.object.isRequired
+    },
     clicked: function clicked(event) {
       this.props.runtime.showObject(this.props.data, "xAxis");
     },
     render: function render() {
-      var _this = this;
+      var node = this.props.data;
+      var runtime = this.props.runtime;
+      var children = filter(complement(isGUI), node.children);
 
       return React.createElement(
         "li",
         { ref: "node" },
         React.createElement(
           "a",
-          { "data-id": this.props.data.id, onClick: this.clicked },
-          "<" + this.props.data.nodeName + ">",
-          React.createElement("br", null),
-          map(function (a) {
-            return ["" + a.name + ": \"" + shorten(20, a.value) + "\"", React.createElement("br", null)];
-          }, filter(pipe(prop("name"), toLower, contains(__, ["translation", "rotation", "diffusecolor"])), this.props.data.attributes))
+          { "data-id": node.id, onClick: this.clicked },
+          "\u0003",
+          "<" + node.nodeName + ">",
+          React.createElement("br", null)
         ),
+        map(function (a) {
+          return [React.createElement(TreeNodeAttribute, { attribute: a, owner: node }), React.createElement("br", null)];
+        }, filter(pipe(prop("name"), toLower, contains(__, ["translation", "rotation", "diffusecolor", "def", "render", "class"])), node.attributes)),
         unlessInline(function (node) {
           return React.createElement(
             "ul",
@@ -296,11 +298,11 @@ window.angular.module("scegratooApp").service("TreeNode", function Project(React
             map(function (child) {
               return React.createElement(TreeNode, {
                 data: child,
-                runtime: _this.props.runtime
+                runtime: runtime
               });
-            })(node.children)
+            })(children)
           );
-        })(this.props.data)
+        })(node)
       );
     }
   });
@@ -309,9 +311,72 @@ window.angular.module("scegratooApp").service("TreeNode", function Project(React
 });
 "use strict";
 
+window.angular.module("scegratooApp").service("TreeNodeAttribute", function (React, R) {
+  var contains = R.contains;
+  var flatten = R.flatten;
+  var map = R.map;
+  var pipe = R.pipe;
+  var split = R.split;
+
+  var deserializeVector = pipe(split(" "), map(split(",")), flatten, map(Number.parseFloat), map(function (n) {
+    return n.toFixed(2);
+  }));
+
+  return React.createClass({
+    displayName: "TreeNodeAttribute",
+    propTypes: {
+      owner: React.PropTypes.object.isRequired,
+      attribute: React.PropTypes.object.isRequired
+    },
+    clicked: function clicked(event) {
+      if (event.currentTarget.checked) {
+        this.props.owner.render = true;
+      } else {
+        this.props.owner.render = false;
+      }
+    },
+    render: function render() {
+      var attribute = this.props.attribute;
+
+      if (attribute.name === "render") {
+        var checked = attribute.value === "true";
+        return React.createElement(
+          "span",
+          null,
+          attribute.name,
+          ": ",
+          React.createElement("input", { type: "checkbox", checked: checked, onClick: this.clicked })
+        );
+      } else if (contains(attribute.name, ["translation", "rotation"])) {
+        return React.createElement(
+          "span",
+          null,
+          attribute.name,
+          ": ",
+          deserializeVector(attribute.value).map(function (coordinate) {
+            return React.createElement("input", { type: "text", value: coordinate, style: { width: "50px" } });
+          })
+        );
+      } else {
+        return React.createElement(
+          "span",
+          null,
+          attribute.name,
+          ": ",
+          attribute.value
+        );
+      }
+    }
+  });
+});
+"use strict";
+
 window.angular.module("scegratooApp").service("TreeView", function Project(React, TreeNode) {
   return React.createClass({
     displayName: "TreeView",
+    propTypes: {
+      data: React.PropTypes.object.isRequired
+    },
     getDefaultProps: function () {
       return {
         data: {},
@@ -335,6 +400,8 @@ window.angular.module("scegratooApp").service("TreeView", function Project(React
   });
 });
 "use strict";
+
+var angular = window.angular;
 
 angular.module("scegratooApp").service("x3dQuery", function x3dQuery() {
   // AngularJS will instantiate a singleton by calling "new" on this function
@@ -478,7 +545,7 @@ angular.module("scegratooApp").service("X3domUtils", function X3domutils($window
     var inline = angular.element(event.hitObject).lastParent("inline");
     var bbox = inline.runtime().getBBox();
 
-    selectionSphere = angular.element("\n        <Transform scale=\"" + bbox.max + "\">\n          <Shape>\n            <Appearance>\n              <Material diffuseColor=\"1 1 1\" transparency=\"0.5\"/>\n            </Appearance>\n            <Sphere />\n          </Shape>\n        </Transform>\n      ");
+    selectionSphere = angular.element("\n        <Transform scale=\"" + bbox.max + "\" class='gui'>\n          <Shape>\n            <Appearance>\n              <Material diffuseColor=\"1 1 1\" transparency=\"0.5\"/>\n            </Appearance>\n            <Sphere />\n          </Shape>\n        </Transform>\n      ");
 
     if (options.useHitPnt) {
       vecOffset = new $window.x3dom.fields.SFVec3f(event.hitPnt[0], event.hitPnt[1], event.hitPnt[2]);
