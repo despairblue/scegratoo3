@@ -1,23 +1,18 @@
 'use strict'
 
 window.angular.module('scegratooApp')
-  .service('TreeNode', function Project (React, R) {
+  .service('TreeNode', function Project (React, R, TreeNodeAttribute) {
     const {
       __,
       always,
       complement,
-      concat,
       contains,
-      curry,
       eq,
       filter,
-      gt,
       ifElse,
-      length,
       map,
       pipe,
       prop,
-      substringTo,
       toLower
     } = R
     const isInline = pipe(
@@ -34,19 +29,6 @@ window.angular.module('scegratooApp')
       isInline,
       always(undefined)
     )
-    const shorten = curry((maxLength, string) => {
-      return ifElse(
-        pipe(
-          length,
-          gt(__, maxLength)
-        ),
-        pipe(
-          substringTo(maxLength),
-          concat(__, ' ...')
-        ),
-        always(string)
-      )(string)
-    })
 
     const TreeNode = React.createClass({
       displayName: 'TreeNode',
@@ -67,21 +49,21 @@ window.angular.module('scegratooApp')
             <a data-id={node.id} onClick={this.clicked}>
               {`<${node.nodeName}>`}
               <br/>
-              {map(
-                a => [
-                  `${a.name}: "${shorten(20, a.value)}"`,
-                  <br/>
-                ],
-                filter(
-                  pipe(
-                    prop('name'),
-                    toLower,
-                    contains(__, ['translation', 'rotation', 'diffusecolor', 'def', 'render', 'class'])
-                  ),
-                  node.attributes
-                )
-              )}
             </a>
+            {map(
+              a => [
+                <TreeNodeAttribute attribute={a} owner={node} />,
+                <br/>
+              ],
+              filter(
+                pipe(
+                  prop('name'),
+                  toLower,
+                  contains(__, ['translation', 'rotation', 'diffusecolor', 'def', 'render', 'class'])
+                ),
+                node.attributes
+              )
+            )}
             {unlessInline(node =>
               <ul>
                 {map(child =>
