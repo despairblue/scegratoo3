@@ -9,12 +9,14 @@ x3d {
 
 .fullpage {
   display: flex;
-  flex-direction: column;
-
+  /*flex-direction: row;*/
+  flex-wrap: wrap;
 }
 
 .fullpage > div {
   padding-bottom: 20px;
+  min-width: 500px;
+  height: 100%;
 }
 
 a {
