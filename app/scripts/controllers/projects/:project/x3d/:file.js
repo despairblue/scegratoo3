@@ -1,6 +1,8 @@
 'use strict'
 
-window.angular.module('scegratooApp')
+const angular = window.angular
+
+angular.module('scegratooApp')
   .controller('ProjectsProjectX3dFileCtrl', function ($scope, $routeParams, Project) {
     Project.get({
       project: $routeParams.project,

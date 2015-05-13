@@ -1,28 +1,30 @@
-'use strict';
+'use strict'
+
+const angular = window.angular
 
 angular.module('scegratooApp')
-  .service('x3dQuery', function x3dQuery() {
+  .service('x3dQuery', function x3dQuery () {
     // AngularJS will instantiate a singleton by calling "new" on this function
 
     angular.element.fn.extend({
-      color: function color(clr) {
+      color: function color (clr) {
         var node = this.get(0)
 
         if (clr) {
           if (angular.isArray(clr)) {
             clr = angular.copy(clr)
 
-            angular.forEach(node.getElementsByTagName('Material'), function(material) {
+            angular.forEach(node.getElementsByTagName('Material'), function (material) {
               material.diffuseColor = clr.shift()
             })
-            angular.forEach(node.getElementsByTagName('material'), function(material) {
+            angular.forEach(node.getElementsByTagName('material'), function (material) {
               material.diffuseColor = clr.shift()
             })
           } else {
-            angular.forEach(node.getElementsByTagName('Material'), function(material) {
+            angular.forEach(node.getElementsByTagName('Material'), function (material) {
               material.diffuseColor = clr
             })
-            angular.forEach(node.getElementsByTagName('material'), function(material) {
+            angular.forEach(node.getElementsByTagName('material'), function (material) {
               material.diffuseColor = clr
             })
           }
@@ -31,10 +33,10 @@ angular.module('scegratooApp')
         } else {
           var colors = []
 
-          angular.forEach(node.getElementsByTagName('Material'), function(material) {
+          angular.forEach(node.getElementsByTagName('Material'), function (material) {
             colors.push(material.diffuseColor)
           })
-          angular.forEach(node.getElementsByTagName('material'), function(material) {
+          angular.forEach(node.getElementsByTagName('material'), function (material) {
             colors.push(material.diffuseColor)
           })
 
@@ -42,19 +44,19 @@ angular.module('scegratooApp')
         }
       },
 
-      runtime: function runtime() {
+      runtime: function runtime () {
         var _this = this
         var boundRuntime = {}
         var runtime = this.firstParent('x3d').get(0).runtime
 
-        angular.forEach(Object.getPrototypeOf(runtime), function(method, name) {
+        angular.forEach(Object.getPrototypeOf(runtime), function (method, name) {
           boundRuntime[name] = angular.bind(runtime, method, _this.get(0))
         })
 
         return boundRuntime
       },
 
-      firstParent: function firstParent(parentName) {
+      firstParent: function firstParent (parentName) {
         var _firstParent
         var next = this.get(0)
 
@@ -74,7 +76,7 @@ angular.module('scegratooApp')
         }
       },
 
-      lastParent: function lastParent(parentName) {
+      lastParent: function lastParent (parentName) {
         var _lastParent
         var next = this.get(0)
 

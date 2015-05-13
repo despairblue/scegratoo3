@@ -1,19 +1,21 @@
 'use strict'
 
+const angular = window.angular
+
 angular.module('scegratooApp')
-  .service('X3domUtils', function X3domutils($window, $routeParams, $templateCache, x3dQuery, Constants) {
+  .service('X3domUtils', function X3domutils ($window, $routeParams, $templateCache, x3dQuery, Constants) {
     // AngularJS will instantiate a singleton by calling "new" on this function
     let vecOffset = {
       x: 0,
       y: 0,
-      z: 0,
+      z: 0
     }
     const options = {
-      useHitPnt:  false,
+      useHitPnt: false,
       snapToGrid: false,
-      x:          '',
-      y:          '',
-      z:          '',
+      x: '',
+      y: '',
+      z: ''
     }
     let inlines
     let crosshairs
@@ -22,7 +24,7 @@ angular.module('scegratooApp')
     let colorCache
     let selectionSphere
 
-    const start = function(event) {
+    const start = function (event) {
       // event.hitPnt is in global space so for this to work one would have to
       // add it to the scene and translate it inside the move function.
       // runtime.getCenter(hitObject) seems to return sth in local space
@@ -32,7 +34,7 @@ angular.module('scegratooApp')
       const bbox = inline.runtime().getBBox()
 
       selectionSphere = angular.element(`
-        <Transform scale="${bbox.max}">
+        <Transform scale="${bbox.max}" class='gui'>
           <Shape>
             <Appearance>
               <Material diffuseColor="1 1 1" transparency="0.5"/>
@@ -41,7 +43,6 @@ angular.module('scegratooApp')
           </Shape>
         </Transform>
       `)
-
 
       if (options.useHitPnt) {
         vecOffset = new $window.x3dom.fields.SFVec3f(event.hitPnt[0], event.hitPnt[1], event.hitPnt[2])
@@ -65,10 +66,10 @@ angular.module('scegratooApp')
       inline.color('yellow').before(selectionSphere)
     }
 
-    const move = function() {
+    const move = function () {
     }
 
-    const stop = function(event) {
+    const stop = function (event) {
       const inline = angular.element(event.hitObject).lastParent('inline')
 
       // remove the crosshair
@@ -80,12 +81,12 @@ angular.module('scegratooApp')
       inline.color(colorCache)
     }
 
-    const processTranslationGizmoEventX = function(event) {
+    const processTranslationGizmoEventX = function (event) {
       let sensorToWorldMatrix
       let translationValue
 
       if (event.fieldName === 'translation_changed') {
-        //convert the sensor's output from sensor coordinates to world coordinates (i.e., include its 'axisRotation')
+        // convert the sensor's output from sensor coordinates to world coordinates (i.e., include its 'axisRotation')
         sensorToWorldMatrix = $window.x3dom.fields.SFMatrix4f.parseRotation(event.target.getAttribute('axisRotation'))
 
         translationValue = sensorToWorldMatrix.multMatrixVec(event.value)
@@ -94,7 +95,7 @@ angular.module('scegratooApp')
           translationValue.x = Math.floor(translationValue.x)
         }
 
-        angular.forEach(inlines, function(inline) {
+        angular.forEach(inlines, function (inline) {
           const oldTranslationValue = inline.parentNode.getFieldValue('translation')
           oldTranslationValue.x = translationValue.x
           inline.parentNode.setFieldValue('translation', oldTranslationValue)
@@ -102,12 +103,12 @@ angular.module('scegratooApp')
       }
     }
 
-    const processTranslationGizmoEventY = function(event) {
+    const processTranslationGizmoEventY = function (event) {
       let sensorToWorldMatrix
       let translationValue
 
       if (event.fieldName === 'translation_changed') {
-        //convert the sensor's output from sensor coordinates to world coordinates (i.e., include its 'axisRotation')
+        // convert the sensor's output from sensor coordinates to world coordinates (i.e., include its 'axisRotation')
         sensorToWorldMatrix = $window.x3dom.fields.SFMatrix4f.parseRotation(event.target.getAttribute('axisRotation'))
 
         translationValue = sensorToWorldMatrix.multMatrixVec(event.value)
@@ -116,7 +117,7 @@ angular.module('scegratooApp')
           translationValue.y = Math.floor(translationValue.y)
         }
 
-        angular.forEach(inlines, function(inline) {
+        angular.forEach(inlines, function (inline) {
           const oldTranslationValue = inline.parentNode.getFieldValue('translation')
           oldTranslationValue.y = translationValue.y
           inline.parentNode.setFieldValue('translation', oldTranslationValue)
@@ -124,22 +125,22 @@ angular.module('scegratooApp')
       }
     }
 
-    const setUp = function(x3dElement) {
+    const setUp = function (x3dElement) {
       let loadCount = 0
       console.debug('Set up scene.')
 
       // fix x3dom swallowing exceptions in callback
-      $window.x3dom.debug.logException = function(e) {
+      $window.x3dom.debug.logException = function (e) {
         console.error(e.stack)
       }
 
-      crosshairs        = angular.element($templateCache.get('templates/crosshair.html')).get(0)
+      crosshairs = angular.element($templateCache.get('templates/crosshair.html')).get(0)
       translationGizmoX = angular.element($templateCache.get('templates/planeSensor-X.html')).get(0)
       translationGizmoY = angular.element($templateCache.get('templates/planeSensor-Y.html')).get(0)
 
       inlines = x3dElement.find('inline')
 
-      angular.forEach(inlines, function(inline) {
+      angular.forEach(inlines, function (inline) {
         const url = inline.getAttribute('url')
         inline.setAttribute('url', Constants.apiRoot +
           '/' + 'projects' +
@@ -150,15 +151,15 @@ angular.module('scegratooApp')
 
       $window.x3dom.reload()
 
-      angular.forEach(x3dElement.find('scene'), function(scene) {
+      angular.forEach(x3dElement.find('scene'), function (scene) {
         scene.appendChild(translationGizmoX)
         scene.appendChild(translationGizmoY)
       })
 
-      angular.forEach(inlines, function(inline) {
+      angular.forEach(inlines, function (inline) {
         inline.addEventListener('mousedown', start)
         inline.addEventListener('mouseup', stop)
-        inline.addEventListener('load', function() {
+        inline.addEventListener('load', function () {
           loadCount += 1
           if (loadCount === inlines.length && x3dElement.children().get(0) && x3dElement.children().get(0).runtime) {
             window.x3dNode = x3dElement.children().get(0)
