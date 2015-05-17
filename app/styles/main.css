@@ -13,7 +13,7 @@ x3d {
   flex-wrap: wrap;
 }
 
-.fullpage > div {
+.fullpage > div:not(.dg) {
   padding-bottom: 20px;
   min-width: 500px;
   height: 100%;
