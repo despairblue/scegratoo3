@@ -16,7 +16,7 @@
 		  >
 		</Viewpoint>
 
-		<Shape>
+		<Shape class="gui">
 		  <IndexedLineSet
 			coordIndex="
 			0  10 20 30 0 -1
@@ -110,10 +110,6 @@
 			</Color>
 		  </IndexedLineSet>
 		</Shape>
-
-		<!-- TODO: implement plan as directive -->
-		<BlenderPlane>
-		</BlenderPlane>
 
 		<!-- id=8d3f0a8a-b6d7-4acc-922b-ea59364443fa -->
 		<Group DEF="G1">
