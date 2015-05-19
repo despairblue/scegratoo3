@@ -1,21 +1,19 @@
 'use strict'
 
 window.angular.module('scegratooApp')
-  .service('TreeNodeAttribute', (React, R) => {
+  .service('TreeNodeAttribute', (React, R, TreeNodeAttributeTextbox) => {
     const {
       contains,
       flatten,
       map,
       pipe,
-      split
+      split,
     } = R
 
-    const deserializeVector = pipe(
+    const splitVector = pipe(
       split(' '),
       map(split(',')),
-      flatten,
-      map(Number.parseFloat),
-      map(n => n.toFixed(2))
+      flatten
     )
 
     return React.createClass({
@@ -24,7 +22,7 @@ window.angular.module('scegratooApp')
         owner: React.PropTypes.object.isRequired,
         attribute: React.PropTypes.object.isRequired
       },
-      clicked: function (event) {
+      changeHandler: function (event) {
         if (event.currentTarget.checked) {
           this.props.owner.render = true
         } else {
@@ -38,13 +36,20 @@ window.angular.module('scegratooApp')
           const checked = attribute.value === 'true'
           return (
             <span>
-              {attribute.name}: <input type='checkbox' checked={checked} onClick={this.clicked} />
+              {attribute.name}: <input type='checkbox' checked={checked} onChange={this.changeHandler} />
             </span>
           )
         } else if (contains(attribute.name, ['translation', 'rotation'])) {
           return (
             <span>
-              {attribute.name}: {deserializeVector(attribute.value).map(coordinate => <input type='text' value={coordinate} style={ {width: '50px'} }/>)}
+              {attribute.name}: {splitVector(attribute.value).map((coordinate, index) =>
+                <TreeNodeAttributeTextbox
+                  attributeName={attribute.name}
+                  index={index}
+                  owner={this.props.owner}
+                  style={{width: '100px'}}
+                />
+              )}
             </span>
           )
         } else {
