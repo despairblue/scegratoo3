@@ -311,16 +311,14 @@ window.angular.module("scegratooApp").service("TreeNode", function Project(React
 });
 "use strict";
 
-window.angular.module("scegratooApp").service("TreeNodeAttribute", function (React, R) {
+window.angular.module("scegratooApp").service("TreeNodeAttribute", function (React, R, TreeNodeAttributeTextbox) {
   var contains = R.contains;
   var flatten = R.flatten;
   var map = R.map;
   var pipe = R.pipe;
   var split = R.split;
 
-  var deserializeVector = pipe(split(" "), map(split(",")), flatten, map(Number.parseFloat), map(function (n) {
-    return n.toFixed(2);
-  }));
+  var splitVector = pipe(split(" "), map(split(",")), flatten);
 
   return React.createClass({
     displayName: "TreeNodeAttribute",
@@ -328,7 +326,7 @@ window.angular.module("scegratooApp").service("TreeNodeAttribute", function (Rea
       owner: React.PropTypes.object.isRequired,
       attribute: React.PropTypes.object.isRequired
     },
-    clicked: function clicked(event) {
+    changeHandler: function changeHandler(event) {
       if (event.currentTarget.checked) {
         this.props.owner.render = true;
       } else {
@@ -336,6 +334,8 @@ window.angular.module("scegratooApp").service("TreeNodeAttribute", function (Rea
       }
     },
     render: function render() {
+      var _this = this;
+
       var attribute = this.props.attribute;
 
       if (attribute.name === "render") {
@@ -345,7 +345,7 @@ window.angular.module("scegratooApp").service("TreeNodeAttribute", function (Rea
           null,
           attribute.name,
           ": ",
-          React.createElement("input", { type: "checkbox", checked: checked, onClick: this.clicked })
+          React.createElement("input", { type: "checkbox", checked: checked, onChange: this.changeHandler })
         );
       } else if (contains(attribute.name, ["translation", "rotation"])) {
         return React.createElement(
@@ -353,8 +353,13 @@ window.angular.module("scegratooApp").service("TreeNodeAttribute", function (Rea
           null,
           attribute.name,
           ": ",
-          deserializeVector(attribute.value).map(function (coordinate) {
-            return React.createElement("input", { type: "text", value: coordinate, style: { width: "50px" } });
+          splitVector(attribute.value).map(function (coordinate, index) {
+            return React.createElement(TreeNodeAttributeTextbox, {
+              attributeName: attribute.name,
+              index: index,
+              owner: _this.props.owner,
+              style: { width: "100px" }
+            });
           })
         );
       } else {
@@ -366,6 +371,59 @@ window.angular.module("scegratooApp").service("TreeNodeAttribute", function (Rea
           attribute.value
         );
       }
+    }
+  });
+});
+"use strict";
+
+window.angular.module("scegratooApp").service("TreeNodeAttributeTextbox", function (React, R) {
+  var flatten = R.flatten;
+  var map = R.map;
+  var mergeAll = R.mergeAll;
+  var pipe = R.pipe;
+  var split = R.split;
+
+  var splitVector = pipe(split(" "), map(split(",")), flatten);
+
+  return React.createClass({
+    displayName: "TreeNodeAttributeTextbox",
+    propTypes: {
+      attributeName: React.PropTypes.string.isRequired,
+      index: React.PropTypes.number.isRequired,
+      owner: React.PropTypes.object.isRequired,
+      style: React.PropTypes.object
+    },
+    handleChangeEvent: function handleChangeEvent(event) {
+      var _props = this.props;
+      var attributeName = _props.attributeName;
+      var index = _props.index;
+      var owner = _props.owner;
+
+      var oldVector = splitVector(owner.getAttribute(attributeName));
+
+      oldVector[index] = event.currentTarget.value;
+      owner.setAttribute(attributeName, oldVector.join(" "));
+
+      this.forceUpdate();
+    },
+    render: function render() {
+      var _this = this;
+
+      var _props = this.props;
+      var owner = _props.owner;
+      var index = _props.index;
+      var attributeName = _props.attributeName;
+
+      return React.createElement("input", {
+        type: "number",
+        step: "0.1",
+        value: splitVector(owner.getAttribute(attributeName))[index],
+        onChange: this.handleChangeEvent,
+        onMouseEnter: function () {
+          return _this.getDOMNode().focus();
+        },
+        style: mergeAll([{ width: "50px" }, this.props.style])
+      });
     }
   });
 });
