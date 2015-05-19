@@ -42,6 +42,7 @@ window.angular.module('scegratooApp')
             step='0.1'
             value={splitVector(owner.getAttribute(attributeName))[index]}
             onChange={this.handleChangeEvent}
+            onMouseEnter={() => this.getDOMNode().focus()}
             style={mergeAll([
               {width: '50px'},
               this.props.style
