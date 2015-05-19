@@ -51,14 +51,10 @@ window.angular.module('scegratooApp')
           this.props.owner.render = false
         }
       },
-      focus: function (translation, event) {
-        this.setState({
-          renderAttribute: false,
-          translation: this.props.owner.translation,
-          rotation: this.props.owner.rotation
-        })
+      focus: function () {
+        this.setState({renderAttribute: false})
       },
-      blur: function (oldValue, index, event) {
+      blur: function () {
         this.setState({renderAttribute: true})
       },
       translationChanged: function (oldValue, index, event) {
@@ -67,9 +63,7 @@ window.angular.module('scegratooApp')
         const newVector = take(3, oldVector).join(' ')
 
         this.props.owner.translation = newVector
-        this.setState({
-          translation: newVector
-        })
+        this.forceUpdate()
       },
       rotationChanged: function (oldValue, index, event) {
         const oldVector = deserializeVector(oldValue)
@@ -77,14 +71,11 @@ window.angular.module('scegratooApp')
         const newVector = take(4, oldVector).join(' ')
 
         this.props.owner.rotation = newVector
-        this.setState({
-          rotation: newVector
-        })
+        this.forceUpdate()
       },
       render: function () {
         const attribute = this.props.attribute
-
-        console.log('render: ', this.state)
+        const renderAttribute = this.state.renderAttribute
 
         if (attribute.name === 'render') {
           const checked = attribute.value === 'true'
@@ -96,7 +87,7 @@ window.angular.module('scegratooApp')
         } else if (contains(attribute.name, ['translation', 'rotation'])) {
           return (
             <span>
-              {attribute.name}: {(this.state.renderAttribute ? deserializeVector(attribute.value) : this.state[attribute.name].split(' ')).map((coordinate, index) => <input
+              {attribute.name}: {(renderAttribute ? deserializeVector(attribute.value) : splitVector(attribute.value)).map((coordinate, index) => <input
                 type='text'
                 value={coordinate}
                 onFocus={this.focus}
