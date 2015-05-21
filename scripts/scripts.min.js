@@ -295,7 +295,7 @@ window.angular.module("scegratooApp").service("TreeNode", function Project(React
       this.props.runtime.showObject(this.props.data, "xAxis");
     },
     toggleVisibility: function toggleVisibility(event) {
-      var element = event.currentTarget.element.parentNode.nextSibling;
+      var element = event.currentTarget.parentNode.nextSibling;
 
       if (this.state.collapsed) {
         element.style.display = "";
