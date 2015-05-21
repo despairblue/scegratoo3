@@ -3,6 +3,10 @@
 /*@import 'sass-bootstrap/lib/bootstrap'; */
 /*@import '_utils';*/
 
+body {
+  overflow-y: scroll;
+}
+
 x3d {
   width: 100%;
 }
