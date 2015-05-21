@@ -256,6 +256,7 @@ window.angular.module("scegratooApp").service("TreeNode", function Project(React
   var filter = R.filter;
   var ifElse = R.ifElse;
   var map = R.map;
+  var mergeAll = R.mergeAll;
   var pipe = R.pipe;
   var prop = R.prop;
   var toLower = R.toLower;
@@ -263,9 +264,29 @@ window.angular.module("scegratooApp").service("TreeNode", function Project(React
   var isInline = pipe(prop("nodeName"), toLower, eq("inline"));
   var isGUI = pipe(prop("className"), toLower, eq("gui"));
   var unlessInline = ifElse(isInline, always(undefined));
+  var bulletStyle = {
+    width: "10px",
+    height: "10px",
+    borderRadius: "50%",
+    fontSize: "20px",
+    color: "#fff",
+    lineHeight: "100px",
+    textAlign: "center",
+    background: "#000",
+    marginRight: "5px",
+    cursor: "pointer"
+  };
+  var collapsedStyle = {
+    background: "#d9d9d9"
+  };
 
   var TreeNode = React.createClass({
     displayName: "TreeNode",
+    getInitialState: function getInitialState() {
+      return {
+        collapsed: false
+      };
+    },
     propTypes: {
       data: React.PropTypes.object.isRequired,
       runtime: React.PropTypes.object.isRequired
@@ -273,36 +294,70 @@ window.angular.module("scegratooApp").service("TreeNode", function Project(React
     clicked: function clicked(event) {
       this.props.runtime.showObject(this.props.data, "xAxis");
     },
+    toggleVisibility: function toggleVisibility(event) {
+      var element = event.currentTarget.element.parentNode.nextSibling;
+
+      if (this.state.collapsed) {
+        element.style.display = "";
+        this.setState({
+          collapsed: false
+        });
+      } else {
+        element.style.display = "none";
+        this.setState({
+          collapsed: true
+        });
+      }
+    },
     render: function render() {
       var node = this.props.data;
       var runtime = this.props.runtime;
       var children = filter(complement(isGUI), node.children);
+      var collapsed = this.state.collapsed;
 
       return React.createElement(
-        "li",
-        { ref: "node" },
+        "div",
+        null,
         React.createElement(
-          "a",
-          { "data-id": node.id, onClick: this.clicked },
-          "\u0003",
-          "<" + node.nodeName + ">",
-          React.createElement("br", null)
-        ),
-        map(function (a) {
-          return [React.createElement(TreeNodeAttribute, { attribute: a, owner: node }), React.createElement("br", null)];
-        }, filter(pipe(prop("name"), toLower, contains(__, ["translation", "rotation", "diffusecolor", "def", "render", "class"])), node.attributes)),
-        unlessInline(function (node) {
-          return React.createElement(
-            "ul",
-            null,
-            map(function (child) {
-              return React.createElement(TreeNode, {
-                data: child,
-                runtime: runtime
-              });
-            })(children)
-          );
-        })(node)
+          "li",
+          { ref: "node", style: { listStyle: "none" } },
+          React.createElement(
+            "div",
+            {
+              style: { display: "flex" }
+            },
+            React.createElement("div", {
+              onClick: this.toggleVisibility,
+              style: mergeAll([bulletStyle, collapsed && collapsedStyle])
+            }),
+            React.createElement(
+              "a",
+              { "data-id": node.id, onClick: this.clicked },
+              "\u0003",
+              "<" + node.nodeName + ">",
+              React.createElement("br", null)
+            )
+          ),
+          React.createElement(
+            "div",
+            { style: { paddingLeft: "15px" } },
+            map(function (a) {
+              return [React.createElement(TreeNodeAttribute, { attribute: a, owner: node }), React.createElement("br", null)];
+            }, filter(pipe(prop("name"), toLower, contains(__, ["translation", "rotation", "diffusecolor", "def", "render", "class"])), node.attributes)),
+            unlessInline(function (node) {
+              return React.createElement(
+                "ul",
+                null,
+                map(function (child) {
+                  return React.createElement(TreeNode, {
+                    data: child,
+                    runtime: runtime
+                  });
+                })(children)
+              );
+            })(node)
+          )
+        )
       );
     }
   });
