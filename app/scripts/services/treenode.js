@@ -84,9 +84,9 @@ window.angular.module('scegratooApp')
 
         return (
           <div>
-            <li ref='node' style={{listStyle:'none'}}>
+            <li ref='node' style={{listStyle: 'none'}}>
               <div
-                style={{display:'flex'}}
+                style={{display: 'flex'}}
               >
                 <div
                   onClick={this.toggleVisibility}
