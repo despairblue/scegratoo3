@@ -100,7 +100,7 @@ window.angular.module('scegratooApp')
                   <br/>
                 </a>
               </div>
-              <div style={{paddingLeft:'15px'}}>
+              <div style={{paddingLeft: '20px'}}>
                 {map(
                   a => [
                     <TreeNodeAttribute attribute={a} owner={node} />,
