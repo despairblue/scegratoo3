@@ -39,7 +39,7 @@ window.angular.module('scegratooApp')
               {attribute.name}: <input type='checkbox' checked={checked} onChange={this.changeHandler} />
             </span>
           )
-        } else if (contains(attribute.name, ['translation', 'rotation'])) {
+        } else if (contains(attribute.name, ['translation', 'rotation', 'position', 'orientation'])) {
           return (
             <span>
               {attribute.name}: {splitVector(attribute.value).map((coordinate, index) =>
