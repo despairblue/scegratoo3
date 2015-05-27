@@ -138,13 +138,14 @@ angular.module("scegratooApp").directive("sgtX3d", function SgtX3d($window, X3do
           var tree = React.createElement(TreeView, {
             data: div.find("x3d").get(0)
           });
+          var watchedAttributes = ["translation", "rotation", "diffuseColor", "render", "position", "orientation"];
           var rerender = _.throttle(React.render, 100);
           var x3dObserver = new window.MutationObserver(function (mutations) {
             mutations.forEach(function (mutation) {
               if (mutation.type === "attributes") {
                 if (["style", "class", "width", "height"].some(function (name) {
                   return name === mutation.attributeName;
-                })) {} else if (["translation", "rotation", "diffuseColor", "render"].some(function (name) {
+                })) {} else if (watchedAttributes.some(function (name) {
                   return name === mutation.attributeName;
                 })) {
                   rerender(tree, div2.get(0));
@@ -280,6 +281,9 @@ window.angular.module("scegratooApp").service("TreeNode", function Project(React
     background: "#d9d9d9"
   };
 
+  var viewPointPosition = undefined;
+  var viewPointOrientation = undefined;
+
   var TreeNode = React.createClass({
     displayName: "TreeNode",
     getInitialState: function getInitialState() {
@@ -290,6 +294,17 @@ window.angular.module("scegratooApp").service("TreeNode", function Project(React
     propTypes: {
       data: React.PropTypes.object.isRequired,
       runtime: React.PropTypes.object.isRequired
+    },
+    componentDidMount: function componentDidMount() {
+      var node = this.props.data;
+
+      if (node.nodeName.toLowerCase() === "viewpoint") {
+        console.log("addEventListener");
+        node.addEventListener("viewpointChanged", function (event) {
+          viewPointPosition = event.position;
+          viewPointOrientation = event.orientation;
+        });
+      }
     },
     clicked: function clicked(event) {
       this.props.runtime.showObject(this.props.data, "xAxis");
@@ -309,7 +324,38 @@ window.angular.module("scegratooApp").service("TreeNode", function Project(React
         });
       }
     },
+    syncViewpoint: function syncViewpoint(event) {
+      // const node = this.props.data
+      // const runtime = this.props.runtime
+      // const viewpoint = runtime.viewpoint()
+      // const transform = viewpoint.getCurrentTransform()
+      // const viewMatrix = viewpoint.getViewMatrix()
+      // const position = transform.inverse().mult(viewMatrix).inverse().e3()
+      // const e_rotation = new x3dom.fields.Quaternion(0, 0, 1, 0)
+      //
+      // console.log(position)
+      // console.log(e_rotation.toAxisAngle())
+      //
+      // oldViewpoint = viewpoint;
+      var node = this.props.data;
+
+      // console.log(viewpoint)
+      // console.log(transform.toString())
+      // console.log(viewMatrix.toString())
+
+      // const position = runtime.getViewingRay(runtime.getWidth()/2, runtime.getHeight()/2).pos
+      // const position = runtime.getViewingRay(0,0).pos
+
+      // console.log(position);
+
+      console.log("Orientation: " + viewPointOrientation);
+      console.log("Position: " + viewPointPosition);
+      node.setAttribute("orientation", "" + viewPointOrientation[0].toString() + " " + viewPointOrientation[1]);
+      node.setAttribute("position", viewPointPosition.toString());
+    },
     render: function render() {
+      var _this = this;
+
       var node = this.props.data;
       var runtime = this.props.runtime;
       var children = filter(complement(isGUI), node.children);
@@ -334,16 +380,25 @@ window.angular.module("scegratooApp").service("TreeNode", function Project(React
               "a",
               { "data-id": node.id, onClick: this.clicked },
               "\u0003",
-              "<" + node.nodeName + ">",
-              React.createElement("br", null)
-            )
+              "<" + node.nodeName + ">"
+            ),
+            (function (nodeName) {
+              if (nodeName.toLowerCase() === "viewpoint") {
+                return React.createElement(
+                  "button",
+                  { onClick: _this.syncViewpoint },
+                  "Sync"
+                );
+              }
+            })(node.nodeName),
+            React.createElement("br", null)
           ),
           React.createElement(
             "div",
-            { style: { paddingLeft: "15px" } },
+            { style: { paddingLeft: "20px" } },
             map(function (a) {
               return [React.createElement(TreeNodeAttribute, { attribute: a, owner: node }), React.createElement("br", null)];
-            }, filter(pipe(prop("name"), toLower, contains(__, ["translation", "rotation", "diffusecolor", "def", "render", "class"])), node.attributes)),
+            }, filter(pipe(prop("name"), toLower, contains(__, ["class", "def", "diffusecolor", "orientation", "position", "render", "rotation", "translation"])), node.attributes)),
             unlessInline(function (node) {
               return React.createElement(
                 "ul",
@@ -364,6 +419,7 @@ window.angular.module("scegratooApp").service("TreeNode", function Project(React
 
   return TreeNode;
 });
+// node.setAttribute('position', position.toString())
 "use strict";
 
 window.angular.module("scegratooApp").service("TreeNodeAttribute", function (React, R, TreeNodeAttributeTextbox) {
@@ -402,7 +458,7 @@ window.angular.module("scegratooApp").service("TreeNodeAttribute", function (Rea
           ": ",
           React.createElement("input", { type: "checkbox", checked: checked, onChange: this.changeHandler })
         );
-      } else if (contains(attribute.name, ["translation", "rotation"])) {
+      } else if (contains(attribute.name, ["translation", "rotation", "position", "orientation"])) {
         return React.createElement(
           "span",
           null,
@@ -496,19 +552,24 @@ window.angular.module("scegratooApp").service("TreeView", function Project(React
         runtime: {}
       };
     },
+    componentDidMount: function componentDidMount() {},
     render: function render() {
-      return React.createElement(
-        "div",
-        null,
-        React.createElement(
-          "ul",
+      if (this.props.data.runtime) {
+        return React.createElement(
+          "div",
           null,
-          React.createElement(TreeNode, {
-            data: this.props.data.querySelector("scene"),
-            runtime: this.props.data.runtime
-          })
-        )
-      );
+          React.createElement(
+            "ul",
+            null,
+            React.createElement(TreeNode, {
+              data: this.props.data.querySelector("scene"),
+              runtime: this.props.data.runtime
+            })
+          )
+        );
+      } else {
+        return React.createElement("div", null);
+      }
     }
   });
 });
