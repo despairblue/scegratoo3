@@ -4,7 +4,11 @@ const angular = window.angular
 const $ = window.$
 
 angular.module('scegratooApp')
-  .directive('sgtX3d', function SgtX3d ($window, X3domUtils, $http, $q, $templateCache, React, TreeView, _) {
+  .directive('sgtX3d', function SgtX3d ($window, X3domUtils, $http, $q, $templateCache, React, TreeView, _, R) {
+    const {
+      eq
+    } = R
+
     return {
       restrict: 'AE',
       link: (scope, element, attrs) => {
@@ -62,13 +66,21 @@ angular.module('scegratooApp')
                   data: div.find('x3d').get(0)
                 }
               )
+              const watchedAttributes = [
+                'translation',
+                'rotation',
+                'diffuseColor',
+                'render',
+                'position',
+                'orientation'
+              ]
               const rerender = _.throttle(React.render, 100)
               const x3dObserver = new window.MutationObserver(mutations => {
                 mutations.forEach(mutation => {
                   if (mutation.type === 'attributes') {
                     if (['style', 'class', 'width', 'height'].some(name => name === mutation.attributeName)) {
 
-                    } else if (['translation', 'rotation', 'diffuseColor', 'render'].some(name => name === mutation.attributeName)) {
+                    } else if (watchedAttributes.some(eq(mutation.attributeName))) {
                       rerender(tree, div2.get(0))
                     } else {
                       console.log(mutation.attributeName)
