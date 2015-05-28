@@ -12,16 +12,20 @@ window.angular.module('scegratooApp')
         runtime: {}
       }),
       render: function () {
-        return (
-          <div>
-            <ul>
-              <TreeNode
-                data={this.props.data.querySelector('scene')}
-                runtime={this.props.data.runtime}
-              />
-            </ul>
-          </div>
-        )
+        if (this.props.data.runtime) {
+          return (
+            <div>
+              <ul>
+                <TreeNode
+                  data={this.props.data.querySelector('scene')}
+                  runtime={this.props.data.runtime}
+                />
+              </ul>
+            </div>
+          )
+        } else {
+          return <div/>
+        }
       }
     })
   })
