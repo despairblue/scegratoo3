@@ -46,6 +46,9 @@ window.angular.module('scegratooApp')
       background: '#d9d9d9'
     }
 
+    let viewPointPosition
+    let viewPointOrientation
+
     const TreeNode = React.createClass({
       displayName: 'TreeNode',
       getInitialState: function () {
@@ -56,6 +59,17 @@ window.angular.module('scegratooApp')
       propTypes: {
         data: React.PropTypes.object.isRequired,
         runtime: React.PropTypes.object.isRequired
+      },
+      componentDidMount: function () {
+        const node = this.props.data
+
+        if (node.nodeName.toLowerCase() === 'viewpoint') {
+          node.addEventListener('viewpointChanged', event => {
+            viewPointPosition = event.position
+            viewPointOrientation = event.orientation
+          })
+        }
+
       },
       clicked: function (event) {
         this.props.runtime.showObject(this.props.data, 'xAxis')
@@ -74,7 +88,12 @@ window.angular.module('scegratooApp')
             collapsed: true
           })
         }
+      },
+      syncViewpoint: function (event) {
+        const node = this.props.data
 
+        node.setAttribute('orientation', `${viewPointOrientation[0].toString()} ${viewPointOrientation[1]}`)
+        node.setAttribute('position', viewPointPosition.toString())
       },
       render: function () {
         const node = this.props.data
@@ -97,8 +116,13 @@ window.angular.module('scegratooApp')
                 />
                 <a data-id={node.id} onClick={this.clicked}>
                   {`<${node.nodeName}>`}
-                  <br/>
                 </a>
+                {(nodeName => {
+                  if (nodeName.toLowerCase() === 'viewpoint') {
+                    return (<button onClick={this.syncViewpoint}>Sync</button>)
+                  }
+                })(node.nodeName)}
+                <br/>
               </div>
               <div style={{paddingLeft: '20px'}}>
                 {map(
