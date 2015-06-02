@@ -257,6 +257,7 @@ window.angular.module("scegratooApp").service("TreeNode", function Project(React
   var contains = R.contains;
   var eq = R.eq;
   var filter = R.filter;
+  var flatten = R.flatten;
   var ifElse = R.ifElse;
   var map = R.map;
   var mergeAll = R.mergeAll;
@@ -353,11 +354,31 @@ window.angular.module("scegratooApp").service("TreeNode", function Project(React
       this.getDOMNode().style.opacity = 1;
     },
     drop: function drop(event) {
-      var node = event.node;
+      var _this = this;
 
-      if (!node.contains(this.props.data)) {
+      var node = event.node;
+      event.node = undefined;
+
+      event.stopPropagation(); // Stops some browsers from redirecting.
+      event.preventDefault();
+
+      if (node && !node.contains(this.props.data)) {
         node.parentElement.removeChild(node);
         this.props.data.appendChild(node);
+      } else if (event.dataTransfer.files) {
+        var files = flatten(event.dataTransfer.files); // turn into real array
+
+        files.forEach(function (file) {
+          var reader = new FileReader();
+
+          reader.onload = function (event) {
+            var element = $(event.target.result);
+            var x3d = element.find("scene").get(0);
+
+            x3d && _this.props.data.appendChild(x3d);
+          };
+          reader.readAsText(file);
+        });
       }
       this.getDOMNode().style.background = "";
     },
