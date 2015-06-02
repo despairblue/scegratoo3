@@ -45,6 +45,11 @@ window.angular.module('scegratooApp')
     const collapsedStyle = {
       background: '#d9d9d9'
     }
+    const removeStyle = {
+      color: 'red',
+      marginLeft: '10px',
+      marginRight: '10px'
+    }
     const syncStyle = {
       color: 'blue'
     }
@@ -140,6 +145,9 @@ window.angular.module('scegratooApp')
         // enables the drop event at all, whoever thought of that api -.-
         event.preventDefault()
       },
+      remove: function (event) {
+        this.props.data.parentElement.removeChild(this.props.data)
+      },
       render: function () {
         const node = this.props.data
         const runtime = this.props.runtime
@@ -172,6 +180,7 @@ window.angular.module('scegratooApp')
                 >
                   {`<${node.nodeName}>`}
                 </a>
+                {(node.nodeName.toLowerCase() !== 'scene') && <a onClick={this.remove} style={removeStyle} >X</a>}
                 {(node.nodeName.toLowerCase() === 'viewpoint') && <a onClick={this.syncViewpoint} style={syncStyle}>Sync</a>}
                 <br/>
               </div>
