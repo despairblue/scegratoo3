@@ -90,7 +90,9 @@ angular.module("scegratooApp").directive("sgtNavigationBar", function () {
 var angular = window.angular;
 var $ = window.$;
 
-angular.module("scegratooApp").directive("sgtX3d", function SgtX3d($window, X3domUtils, $http, $q, $templateCache, React, TreeView, _) {
+angular.module("scegratooApp").directive("sgtX3d", function SgtX3d($window, X3domUtils, $http, $q, $templateCache, React, TreeView, _, R) {
+  var eq = R.eq;
+
   return {
     restrict: "AE",
     link: function (scope, element, attrs) {
@@ -145,18 +147,18 @@ angular.module("scegratooApp").directive("sgtX3d", function SgtX3d($window, X3do
               if (mutation.type === "attributes") {
                 if (["style", "class", "width", "height"].some(function (name) {
                   return name === mutation.attributeName;
-                })) {} else if (watchedAttributes.some(function (name) {
-                  return name === mutation.attributeName;
-                })) {
+                })) {} else if (watchedAttributes.some(eq(mutation.attributeName))) {
                   rerender(tree, div2.get(0));
                 } else {
                   console.log(mutation.attributeName);
                 }
+              } else if (mutation.type === "childList") {
+                rerender(tree, div2.get(0));
               }
             });
           });
 
-          x3dObserver.observe(div.get(0), {
+          x3dObserver.observe(div.find("scene").get(0), {
             attributes: true,
             childList: true,
             subtree: true
@@ -288,7 +290,13 @@ window.angular.module("scegratooApp").service("TreeNode", function Project(React
     displayName: "TreeNode",
     getInitialState: function getInitialState() {
       return {
-        collapsed: false
+        collapsed: false,
+        // these are necessary because the browser fires the dragEnter and dragLeave events interleaved:
+        //   dragEnter, dragEnter, dragLeave, dragLeave
+        // thus making it necessary to keep track of the number of enters and leaves (or at least two of them)
+        // thanks to dragster for this idea (https://github.com/bensmithett/dragster/blob/gh-pages/src/dragster.coffee)
+        dragEntered1: false,
+        dragEntered2: false
       };
     },
     propTypes: {
@@ -299,7 +307,6 @@ window.angular.module("scegratooApp").service("TreeNode", function Project(React
       var node = this.props.data;
 
       if (node.nodeName.toLowerCase() === "viewpoint") {
-        console.log("addEventListener");
         node.addEventListener("viewpointChanged", function (event) {
           viewPointPosition = event.position;
           viewPointOrientation = event.orientation;
@@ -325,33 +332,46 @@ window.angular.module("scegratooApp").service("TreeNode", function Project(React
       }
     },
     syncViewpoint: function syncViewpoint(event) {
-      // const node = this.props.data
-      // const runtime = this.props.runtime
-      // const viewpoint = runtime.viewpoint()
-      // const transform = viewpoint.getCurrentTransform()
-      // const viewMatrix = viewpoint.getViewMatrix()
-      // const position = transform.inverse().mult(viewMatrix).inverse().e3()
-      // const e_rotation = new x3dom.fields.Quaternion(0, 0, 1, 0)
-      //
-      // console.log(position)
-      // console.log(e_rotation.toAxisAngle())
-      //
-      // oldViewpoint = viewpoint;
       var node = this.props.data;
 
-      // console.log(viewpoint)
-      // console.log(transform.toString())
-      // console.log(viewMatrix.toString())
-
-      // const position = runtime.getViewingRay(runtime.getWidth()/2, runtime.getHeight()/2).pos
-      // const position = runtime.getViewingRay(0,0).pos
-
-      // console.log(position);
-
-      console.log("Orientation: " + viewPointOrientation);
-      console.log("Position: " + viewPointPosition);
       node.setAttribute("orientation", "" + viewPointOrientation[0].toString() + " " + viewPointOrientation[1]);
       node.setAttribute("position", viewPointPosition.toString());
+    },
+    dragStart: function dragStart(event) {
+      this.getDOMNode().style.opacity = 0.4;
+      event.node = this.props.data;
+    },
+    dragEnd: function dragEnd(event) {
+      this.getDOMNode().style.opacity = 1;
+    },
+    drop: function drop(event) {
+      var node = event.node;
+
+      if (!node.contains(this.props.data)) {
+        node.parentElement.removeChild(node);
+        this.props.data.appendChild(node);
+      }
+      this.getDOMNode().style.background = "";
+    },
+    dragEnter: function dragEnter(event) {
+      if (this.state.dragEntered1) {
+        this.state.dragEntered2 = true;
+      } else {
+        this.state.dragEntered1 = true;
+        this.getDOMNode().style.background = "rgb(203, 169, 198)";
+      }
+    },
+    dragLeave: function dragLeave(event) {
+      if (this.state.dragEntered2) {
+        this.state.dragEntered2 = false;
+      } else {
+        this.state.dragEntered1 = false;
+        this.getDOMNode().style.background = "";
+      }
+    },
+    dragOver: function dragOver(event) {
+      // enables the drop event at all, whoever thought of that api -.-
+      event.preventDefault();
     },
     render: function render() {
       var _this = this;
@@ -378,7 +398,17 @@ window.angular.module("scegratooApp").service("TreeNode", function Project(React
             }),
             React.createElement(
               "a",
-              { "data-id": node.id, onClick: this.clicked },
+              {
+                draggable: "true",
+                "data-id": node.id,
+                onClick: this.clicked,
+                onDragStart: this.dragStart,
+                onDragEnd: this.dragEnd,
+                onDragEnter: this.dragEnter,
+                onDragLeave: this.dragLeave,
+                onDragOver: this.dragOver,
+                onDrop: this.drop
+              },
               "\u0003",
               "<" + node.nodeName + ">"
             ),
@@ -419,7 +449,6 @@ window.angular.module("scegratooApp").service("TreeNode", function Project(React
 
   return TreeNode;
 });
-// node.setAttribute('position', position.toString())
 "use strict";
 
 window.angular.module("scegratooApp").service("TreeNodeAttribute", function (React, R, TreeNodeAttributeTextbox) {
@@ -552,7 +581,6 @@ window.angular.module("scegratooApp").service("TreeView", function Project(React
         runtime: {}
       };
     },
-    componentDidMount: function componentDidMount() {},
     render: function render() {
       if (this.props.data.runtime) {
         return React.createElement(
