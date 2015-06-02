@@ -45,6 +45,9 @@ window.angular.module('scegratooApp')
     const collapsedStyle = {
       background: '#d9d9d9'
     }
+    const syncStyle = {
+      color: 'blue'
+    }
 
     let viewPointPosition
     let viewPointOrientation
@@ -169,11 +172,7 @@ window.angular.module('scegratooApp')
                 >
                   {`<${node.nodeName}>`}
                 </a>
-                {(nodeName => {
-                  if (nodeName.toLowerCase() === 'viewpoint') {
-                    return (<button onClick={this.syncViewpoint}>Sync</button>)
-                  }
-                })(node.nodeName)}
+                {(node.nodeName.toLowerCase() === 'viewpoint') && <a onClick={this.syncViewpoint} style={syncStyle}>Sync</a>}
                 <br/>
               </div>
               <div style={{paddingLeft: '20px'}}>
