@@ -85,11 +85,13 @@ angular.module('scegratooApp')
                     } else {
                       console.log(mutation.attributeName)
                     }
+                  } else if (mutation.type === 'childList') {
+                    rerender(tree, div2.get(0))
                   }
                 })
               })
 
-              x3dObserver.observe(div.get(0), {
+              x3dObserver.observe(div.find('scene').get(0), {
                 attributes: true,
                 childList: true,
                 subtree: true

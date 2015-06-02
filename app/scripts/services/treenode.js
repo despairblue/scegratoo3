@@ -53,7 +53,13 @@ window.angular.module('scegratooApp')
       displayName: 'TreeNode',
       getInitialState: function () {
         return {
-          collapsed: false
+          collapsed: false,
+          // these are necessary because the browser fires the dragEnter and dragLeave events interleaved:
+          //   dragEnter, dragEnter, dragLeave, dragLeave
+          // thus making it necessary to keep track of the number of enters and leaves (or at least two of them)
+          // thanks to dragster for this idea (https://github.com/bensmithett/dragster/blob/gh-pages/src/dragster.coffee)
+          dragEntered1: false,
+          dragEntered2: false
         }
       },
       propTypes: {
@@ -95,6 +101,42 @@ window.angular.module('scegratooApp')
         node.setAttribute('orientation', `${viewPointOrientation[0].toString()} ${viewPointOrientation[1]}`)
         node.setAttribute('position', viewPointPosition.toString())
       },
+      dragStart: function (event) {
+        this.getDOMNode().style.opacity = 0.4
+        event.node = this.props.data
+      },
+      dragEnd: function (event) {
+        this.getDOMNode().style.opacity = 1
+      },
+      drop: function (event) {
+        const node = event.node
+
+        if (!node.contains(this.props.data)) {
+          node.parentElement.removeChild(node)
+          this.props.data.appendChild(node)
+        }
+        this.getDOMNode().style.background = ''
+      },
+      dragEnter: function (event) {
+        if (this.state.dragEntered1) {
+          this.state.dragEntered2 = true
+        } else {
+          this.state.dragEntered1 = true
+          this.getDOMNode().style.background = 'rgb(203, 169, 198)'
+        }
+      },
+      dragLeave: function (event) {
+        if (this.state.dragEntered2) {
+          this.state.dragEntered2 = false
+        } else {
+          this.state.dragEntered1 = false
+          this.getDOMNode().style.background = ''
+        }
+      },
+      dragOver: function (event) {
+        // enables the drop event at all, whoever thought of that api -.-
+        event.preventDefault()
+      },
       render: function () {
         const node = this.props.data
         const runtime = this.props.runtime
@@ -114,7 +156,17 @@ window.angular.module('scegratooApp')
                     collapsed && collapsedStyle
                   ])}
                 />
-                <a data-id={node.id} onClick={this.clicked}>
+                <a
+                  draggable='true'
+                  data-id={node.id}
+                  onClick={this.clicked}
+                  onDragStart={this.dragStart}
+                  onDragEnd={this.dragEnd}
+                  onDragEnter={this.dragEnter}
+                  onDragLeave={this.dragLeave}
+                  onDragOver={this.dragOver}
+                  onDrop={this.drop}
+                >
                   {`<${node.nodeName}>`}
                 </a>
                 {(nodeName => {
