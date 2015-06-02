@@ -282,6 +282,14 @@ window.angular.module("scegratooApp").service("TreeNode", function Project(React
   var collapsedStyle = {
     background: "#d9d9d9"
   };
+  var removeStyle = {
+    color: "red",
+    marginLeft: "10px",
+    marginRight: "10px"
+  };
+  var syncStyle = {
+    color: "blue"
+  };
 
   var viewPointPosition = undefined;
   var viewPointOrientation = undefined;
@@ -373,9 +381,10 @@ window.angular.module("scegratooApp").service("TreeNode", function Project(React
       // enables the drop event at all, whoever thought of that api -.-
       event.preventDefault();
     },
+    remove: function remove(event) {
+      this.props.data.parentElement.removeChild(this.props.data);
+    },
     render: function render() {
-      var _this = this;
-
       var node = this.props.data;
       var runtime = this.props.runtime;
       var children = filter(complement(isGUI), node.children);
@@ -412,15 +421,16 @@ window.angular.module("scegratooApp").service("TreeNode", function Project(React
               "\u0003",
               "<" + node.nodeName + ">"
             ),
-            (function (nodeName) {
-              if (nodeName.toLowerCase() === "viewpoint") {
-                return React.createElement(
-                  "button",
-                  { onClick: _this.syncViewpoint },
-                  "Sync"
-                );
-              }
-            })(node.nodeName),
+            node.nodeName.toLowerCase() !== "scene" && React.createElement(
+              "a",
+              { onClick: this.remove, style: removeStyle },
+              "X"
+            ),
+            node.nodeName.toLowerCase() === "viewpoint" && React.createElement(
+              "a",
+              { onClick: this.syncViewpoint, style: syncStyle },
+              "Sync"
+            ),
             React.createElement("br", null)
           ),
           React.createElement(
