@@ -9,6 +9,7 @@ window.angular.module('scegratooApp')
       contains,
       eq,
       filter,
+      flatten,
       ifElse,
       map,
       mergeAll,
@@ -118,10 +119,28 @@ window.angular.module('scegratooApp')
       },
       drop: function (event) {
         const node = event.node
+        event.node = undefined
 
-        if (!node.contains(this.props.data)) {
+        event.stopPropagation() // Stops some browsers from redirecting.
+        event.preventDefault()
+
+        if (node && !node.contains(this.props.data)) {
           node.parentElement.removeChild(node)
           this.props.data.appendChild(node)
+        } else if (event.dataTransfer.files) {
+          const files = flatten(event.dataTransfer.files) // turn into real array
+
+          files.forEach(file => {
+            const reader = new FileReader()
+
+            reader.onload = event => {
+              const element = $(event.target.result)
+              const x3d = element.find('scene').get(0)
+
+              x3d && this.props.data.appendChild(x3d)
+            }
+            reader.readAsText(file)
+          })
         }
         this.getDOMNode().style.background = ''
       },
