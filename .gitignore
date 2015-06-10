@@ -2,10 +2,10 @@ dist
 .tmp
 
 # Node
-node_modules
+/node_modules
 
 # Bower
-app/bower_components
+scegratoo/public/bower_components
 
 # Sublime Grunt Plugin
 .sublime-grunt.cache

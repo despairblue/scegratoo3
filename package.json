@@ -1,7 +1,34 @@
 {
   "name": "scegratoo",
   "version": "0.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "debug": "node-debug index.js",
+    "postinstall": "bower install",
+    "test": "grunt test:unit",
+    "deploy": "gulp deploy",
+    "watch": "gulp",
+    "bootstrap": "npm install && bower install",
+    "deploy-travis": "gulp deploy-travis",
+    "karma": "karma start karma.conf.js",
+    "karma-chrome": "karma start karma-chrome.conf.js"
+  },
+  "dependencies": {
+    "babel": "5.4.7",
+    "bluebird": "2.9.27",
+    "cool-ascii-faces": "1.3.3",
+    "debug": "2.2.0",
+    "koa": "0.21.0",
+    "koa-router": "5.1.1",
+    "koa-send": "1.3.1",
+    "koa-static": "1.4.9",
+    "mz": "2.0.0",
+    "ramda": "0.14.0",
+    "resolve-path": "1.2.2"
+  },
   "devDependencies": {
+    "node-inspector": "0.10.1",
     "bower": "^1.3.12",
     "browser-sync": "^1.5.1",
     "del": "^0.1.3",
@@ -62,15 +89,11 @@
     "time-grunt": "^0"
   },
   "engines": {
-    "node": ">=0.8.0"
+    "iojs": "2.2.x"
   },
-  "scripts": {
-    "test": "grunt test:unit",
-    "deploy": "gulp deploy",
-    "watch": "gulp",
-    "bootstrap": "npm install && bower install",
-    "deploy-travis": "gulp deploy-travis",
-    "karma": "karma start karma.conf.js",
-    "karma-chrome": "karma start karma-chrome.conf.js"
-  }
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/despairblue/scegratoo3"
+  },
+  "license": "Apache-2.0"
 }
