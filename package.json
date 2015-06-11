@@ -5,6 +5,7 @@
   "scripts": {
     "start": "node index.js",
     "watchServer": "nodemon index.js",
+    "watchClient": "browser-sync start --proxy localhost:5000 --files \"scegratoo/public/**/*\"",
     "debug": "node-debug index.js",
     "postinstall": "bower install",
     "test": "grunt test:unit",
