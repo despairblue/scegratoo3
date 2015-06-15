@@ -9,5 +9,6 @@ require('babel/register')({
 })
 
 global.Promise = require('bluebird')
+Promise.longStackTraces()
 
 require('./scegratoo/app.js')
