@@ -115,7 +115,7 @@
 		<Group DEF="G1">
 			<Transform DEF="generatedTransform2" scale="1 1 1" rotation="0 0 1 0" translation="0 0 0">
 				<!-- id=fe5e7ede-9ca3-4fe3-82a3-bfe9e03bc513 -->
-				<Inline DEF="O1_2" nameSpaceName="O1_2" url="x3d/horse.x3d">
+				<Inline DEF="O1_2" nameSpaceName="O1_2" url="horse.x3d">
 				</Inline>
 			</Transform>
 			</Group>

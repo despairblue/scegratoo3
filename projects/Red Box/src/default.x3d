@@ -115,7 +115,7 @@
 		<Group DEF="G1">
 			<Transform DEF="generatedTransform3" scale="1 1 1" rotation="0 0 1 0" translation="0 0 0">
 				<!-- id=8459b736-5a9d-4688-b624-e519857a92fd -->
-				<Inline DEF="O1_3" nameSpaceName="O1_3" url="x3d/redBox.x3d">
+				<Inline DEF="O1_3" nameSpaceName="O1_3" url="redBox.x3d">
 				</Inline>
 			</Transform>
 			</Group>

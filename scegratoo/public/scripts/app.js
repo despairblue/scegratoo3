@@ -20,7 +20,7 @@ window.angular.module('scegratooApp', [
         templateUrl: 'views/project.html',
         controller: 'ProjectCtrl'
       })
-      .when('/projects/:project/x3d/:file*', {
+      .when('/projects/:project/:file*', {
         templateUrl: 'views/projects/:project/x3d/:file.html',
         controller: 'ProjectsProjectX3dFileCtrl'
       })

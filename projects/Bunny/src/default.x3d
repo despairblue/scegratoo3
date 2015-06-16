@@ -115,7 +115,7 @@
 		<Group DEF="G1">
 			<Transform DEF="generatedTransform1" scale="1 1 1" rotation="0 0 1 0" translation="0 0 0">
 				<!-- id=f2192f95-5c31-4b9f-b4e2-5f80b56178da -->
-				<Inline DEF="O1_1" nameSpaceName="O1_1" url="x3d/bunny.x3d">
+				<Inline DEF="O1_1" nameSpaceName="O1_1" url="bunny.x3d">
 				</Inline>
 			</Transform>
 			</Group>

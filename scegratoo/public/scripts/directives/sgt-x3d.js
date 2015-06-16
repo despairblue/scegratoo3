@@ -4,7 +4,7 @@ const angular = window.angular
 const $ = window.$
 
 angular.module('scegratooApp')
-  .directive('sgtX3d', function SgtX3d ($window, X3domUtils, $http, $q, $templateCache, React, TreeView, _, R) {
+  .directive('sgtX3d', function SgtX3d ($window, X3domUtils, $http, $q, $templateCache, React, TreeView, _, R, InlineList, Project) {
     const {
       eq
     } = R
@@ -28,8 +28,10 @@ angular.module('scegratooApp')
             results.forEach(value => {
               $templateCache.put(value.config.url, value.data)
             })
+
+            return Project.getInlines()
           })
-          .then(() => {
+          .then(({data: inlines}) => {
             const div = $(document.createElement('div'))
             const div2 = $(document.createElement('div'))
 
@@ -60,12 +62,13 @@ angular.module('scegratooApp')
             scope.$watch(attrs.content, content => {
               div.html(content)
 
-              const tree = React.createElement(
-                TreeView,
-                {
-                  data: div.find('x3d').get(0)
-                }
+              const sidebar = (
+                <div>
+                  <TreeView data={div.find('x3d').get(0)} />
+                  <InlineList inlines={inlines} />
+                </div>
               )
+
               const watchedAttributes = [
                 'translation',
                 'rotation',
@@ -81,12 +84,12 @@ angular.module('scegratooApp')
                     if (['style', 'class', 'width', 'height'].some(name => name === mutation.attributeName)) {
 
                     } else if (watchedAttributes.some(eq(mutation.attributeName))) {
-                      rerender(tree, div2.get(0))
+                      rerender(sidebar, div2.get(0))
                     } else {
                       console.log(mutation.attributeName)
                     }
                   } else if (mutation.type === 'childList') {
-                    rerender(tree, div2.get(0))
+                    rerender(sidebar, div2.get(0))
                   }
                 })
               })
@@ -97,7 +100,7 @@ angular.module('scegratooApp')
                 subtree: true
               })
 
-              React.render(tree, div2.get(0))
+              React.render(sidebar, div2.get(0))
               options = X3domUtils.setUp(div)
             })
           })

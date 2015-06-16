@@ -1,9 +1,10 @@
 'use strict'
 
 window.angular.module('scegratooApp')
-  .service('Project', function Project ($resource, $http, Constants) {
-    const route = Constants.apiRoot + '/projects/:project.:format'
-    const resource = $resource(route, {format: 'json'})
+  .service('Project', function Project ($resource, $http, Constants, $routeParams) {
+    const route = Constants.apiRoot + '/projects/:project'
+    const resource = $resource(route)
+
     return {
       get: (params, fn) => {
         if (params.file) {
@@ -24,6 +25,7 @@ window.angular.module('scegratooApp')
           return resource.get(params, fn)
         }
       },
+      getInlines: () => $http.get(`projects/${$routeParams.project}`),
       query: resource.query
       // getFile: function(params) {
       //   var url = [
