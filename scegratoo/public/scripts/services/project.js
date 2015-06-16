@@ -2,7 +2,6 @@
 
 window.angular.module('scegratooApp')
   .service('Project', function Project ($resource, $http, Constants) {
-    // AngularJS will instantiate a singleton by calling "new" on this function
     const route = Constants.apiRoot + '/projects/:project.:format'
     const resource = $resource(route, {format: 'json'})
     return {

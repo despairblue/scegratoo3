@@ -1,6 +1,6 @@
-'use strict';
+'use strict'
 
-angular.module('scegratooApp', [
+window.angular.module('scegratooApp', [
   'ngCookies',
   'ngResource',
   'ngSanitize',
@@ -27,4 +27,4 @@ angular.module('scegratooApp', [
       // .otherwise({
       //   redirectTo: '/projects'
       // });
-  });
+  })
