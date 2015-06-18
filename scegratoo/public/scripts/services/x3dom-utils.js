@@ -3,7 +3,7 @@
 const angular = window.angular
 
 angular.module('scegratooApp')
-  .service('X3domUtils', function X3domutils ($window, $routeParams, $templateCache, x3dQuery, Constants) {
+  .service('X3domUtils', function X3domutils ($window, $routeParams, $templateCache, x3dQuery) {
     // AngularJS will instantiate a singleton by calling "new" on this function
     let vecOffset = {
       x: 0,
@@ -142,11 +142,7 @@ angular.module('scegratooApp')
 
       angular.forEach(inlines, function (inline) {
         const url = inline.getAttribute('url')
-        inline.setAttribute('url', Constants.apiRoot +
-          '/' + 'projects' +
-          '/' + $routeParams.project +
-          '/' + $routeParams.file.replace(/\/[^\/]*$/, '') +
-          '/' + url)
+        inline.setAttribute('url', `projects/${$routeParams.project}/${$routeParams.file.replace(/\/[^\/]*$/, '')}/${url}`)
       })
 
       $window.x3dom.reload()

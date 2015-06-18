@@ -1,19 +1,14 @@
 'use strict'
 
 window.angular.module('scegratooApp')
-  .service('Project', function Project ($resource, $http, Constants, $routeParams) {
-    const route = Constants.apiRoot + '/projects/:project'
+  .service('Project', function Project ($resource, $http, $routeParams) {
+    const route = '/projects/:project'
     const resource = $resource(route)
 
     return {
       get: (params, fn) => {
         if (params.file) {
-          const url = [
-            Constants.apiRoot,
-            'projects',
-            encodeURI(params.project),
-            encodeURI(params.file)
-          ].join('/')
+          const url = `projects/${encodeURI(params.project)}/${encodeURI(params.file)}`
           const res = $resource(url, {}, {
             get: {
               method: 'GET',
