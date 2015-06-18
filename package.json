@@ -7,13 +7,7 @@
     "watchServer": "DEBUG=koa* nodemon index.js",
     "watchClient": "browser-sync start --proxy localhost:5000 --files \"scegratoo/public/**/*\"",
     "debug": "DEBUG=koa* node-debug index.js",
-    "postinstall": "bower install",
-    "test": "grunt test:unit",
-    "deploy": "gulp deploy",
-    "bootstrap": "npm install && bower install",
-    "deploy-travis": "gulp deploy-travis",
-    "karma": "karma start karma.conf.js",
-    "karma-chrome": "karma start karma-chrome.conf.js"
+    "postinstall": "bower install"
   },
   "dependencies": {
     "babel": "5.4.7",
