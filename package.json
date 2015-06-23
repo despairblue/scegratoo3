@@ -4,9 +4,9 @@
   "main": "index.js",
   "scripts": {
     "start": "DEBUG=koa* node index.js",
-    "watchServer": "DEBUG=koa* nodemon index.js",
+    "watchServer": "DEBUG=koa* nodemon --debug index.js",
     "watchClient": "browser-sync start --proxy localhost:5000 --files \"scegratoo/public/**/*\"",
-    "debug": "DEBUG=koa* node-debug index.js",
+    "debug": "node-inspector --save-live-edit",
     "postinstall": "bower install"
   },
   "dependencies": {
