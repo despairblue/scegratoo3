@@ -1,7 +1,14 @@
 'use strict'
 
-window.angular.module('scegratooApp')
-  .service('TreeNode', function Project (React, R, TreeNodeAttribute) {
+const {
+  $,
+  alert,
+  angular,
+  FileReader
+} = window
+
+angular.module('scegratooApp')
+  .service('TreeNode', function Project (React, R, TreeNodeAttribute, Project) {
     const {
       __,
       always,
@@ -134,10 +141,14 @@ window.angular.module('scegratooApp')
             const reader = new FileReader()
 
             reader.onload = event => {
-              const element = $(event.target.result)
-              const x3d = element.find('scene').get(0)
-
-              x3d && this.props.data.appendChild(x3d)
+              Project
+                .uploadFile(file.name, event.target.result)
+                .catch(() => alert('Upload failed.'))
+                .then((result) => {
+                  const inline = document.createElement('Inline')
+                  inline.setAttribute('url', result.data)
+                  this.props.data.appendChild(inline)
+                })
             }
             reader.readAsText(file)
           })

@@ -20,6 +20,7 @@ window.angular.module('scegratooApp')
           return resource.get(params, fn)
         }
       },
+      uploadFile: (name, content) => $http.post(`projects/${$routeParams.project}/src/${name}`, {content}),
       getInlines: () => $http.get(`projects/${$routeParams.project}`),
       query: resource.query
       // getFile: function(params) {
