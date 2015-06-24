@@ -3,8 +3,7 @@
 const angular = window.angular
 
 angular.module('scegratooApp')
-  .service('X3domUtils', function X3domutils ($window, $routeParams, $templateCache, x3dQuery) {
-    // AngularJS will instantiate a singleton by calling "new" on this function
+  .service('X3domUtils', function X3domutils ($window, $routeParams, $templateCache, x3dQuery, Moveable, moveables) {
     let vecOffset = {
       x: 0,
       y: 0,
@@ -125,7 +124,8 @@ angular.module('scegratooApp')
       }
     }
 
-    const setUp = function (x3dElement) {
+    const setUp = function (x3dContainer) {
+      const x3dNode = x3dContainer.children().get(0)
       let loadCount = 0
       console.debug('Set up scene.')
 
@@ -138,7 +138,7 @@ angular.module('scegratooApp')
       translationGizmoX = angular.element($templateCache.get('templates/planeSensor-X.html')).get(0)
       translationGizmoY = angular.element($templateCache.get('templates/planeSensor-Y.html')).get(0)
 
-      inlines = x3dElement.find('inline')
+      inlines = x3dContainer.find('inline')
 
       angular.forEach(inlines, function (inline) {
         const url = inline.getAttribute('url')
@@ -147,7 +147,7 @@ angular.module('scegratooApp')
 
       $window.x3dom.reload()
 
-      angular.forEach(x3dElement.find('scene'), function (scene) {
+      angular.forEach(x3dContainer.find('scene'), function (scene) {
         scene.appendChild(translationGizmoX)
         scene.appendChild(translationGizmoY)
       })
@@ -157,13 +157,19 @@ angular.module('scegratooApp')
         inline.addEventListener('mouseup', stop)
         inline.addEventListener('load', function () {
           loadCount += 1
-          if (loadCount === inlines.length && x3dElement.children().get(0) && x3dElement.children().get(0).runtime) {
-            window.x3dNode = x3dElement.children().get(0)
-            x3dElement.children().get(0).runtime.showAll()
+          if (loadCount === inlines.length && x3dNode && x3dNode.runtime) {
+            window.x3dNode = x3dNode
+            x3dNode.runtime.showAll()
           }
         })
-        new $window.x3dom.Moveable(x3dElement.children().get(0),
-          inline.parentElement, move, 0, 'all')
+
+        // keep a weak reference from the tranlation to the moveable around to
+        // remove the event handlers the moveable registers on the translation
+        // again if the translation is removed
+        if (!moveables.has(inline)) {
+          moveables.set(inline.parentNode, new Moveable(x3dNode,
+            inline.parentElement, move, 0, 'all'))
+        }
       })
 
       translationGizmoX.children[0].addEventListener('onoutputchange', processTranslationGizmoEventX)

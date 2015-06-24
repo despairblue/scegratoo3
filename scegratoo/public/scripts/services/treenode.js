@@ -6,7 +6,7 @@ const {
 } = window
 
 angular.module('scegratooApp')
-  .service('TreeNode', function Project (React, R, TreeNodeAttribute, Project) {
+  .service('TreeNode', function Project (React, R, TreeNodeAttribute, Project, moveables) {
     const {
       __,
       always,
@@ -143,9 +143,11 @@ angular.module('scegratooApp')
                 .uploadFile(file.name, event.target.result)
                 .catch(() => window.alert('Upload failed.'))
                 .then((result) => {
+                  const transform = document.createElement('Transform')
                   const inline = document.createElement('Inline')
                   inline.setAttribute('url', result.data)
-                  this.props.data.appendChild(inline)
+                  transform.appendChild(inline)
+                  this.props.data.appendChild(transform)
                 })
             }
             reader.readAsText(file)
@@ -174,6 +176,11 @@ angular.module('scegratooApp')
         event.preventDefault()
       },
       remove: function (event) {
+        // detach the event handlers the moveable registered on the translation
+        if (moveables.has(this.props.data)) {
+          moveables.get(this.props.data).detachHandlers()
+        }
+
         this.props.data.parentElement.removeChild(this.props.data)
       },
       render: function () {

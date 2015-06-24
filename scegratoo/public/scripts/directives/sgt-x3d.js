@@ -4,8 +4,9 @@ const angular = window.angular
 const $ = window.$
 
 angular.module('scegratooApp')
-  .directive('sgtX3d', function SgtX3d ($window, X3domUtils, $http, $q, $templateCache, React, TreeView, _, R, InlineList, Project) {
+  .directive('sgtX3d', function SgtX3d ($window, X3domUtils, $http, $q, $templateCache, React, TreeView, _, R, InlineList, Project, Moveable, moveables) {
     const {
+      flatten,
       eq
     } = R
 
@@ -89,6 +90,23 @@ angular.module('scegratooApp')
                       console.log(mutation.attributeName)
                     }
                   } else if (mutation.type === 'childList') {
+                    flatten(mutation.addedNodes)
+                      .filter(node => node.nodeName.toLowerCase() === 'transform')
+                      .forEach(transform => {
+                        let inline = transform.children[0]
+
+                        if (inline && inline.nodeName.toLowerCase() === 'inline') {
+                          let x3dNode = angular.element(inline).firstParent('x3d').get(0)
+
+                          // keep a weak reference from the tranlation to the
+                          // moveable around to remove the event handlers the
+                          // again if the translation is removed
+                          if (!moveables.has(transform)) {
+                            moveables.set(transform, new Moveable(x3dNode, inline.parentElement, () => {}, 0, 'all'))
+                          }
+                        }
+                      })
+
                     rerender(sidebar, div2.get(0))
                   }
                 })
