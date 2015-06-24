@@ -1,7 +1,6 @@
 'use strict'
 
 const {
-  alert,
   angular,
   FileReader
 } = window
@@ -142,7 +141,7 @@ angular.module('scegratooApp')
             reader.onload = event => {
               Project
                 .uploadFile(file.name, event.target.result)
-                .catch(() => alert('Upload failed.'))
+                .catch(() => window.alert('Upload failed.'))
                 .then((result) => {
                   const inline = document.createElement('Inline')
                   inline.setAttribute('url', result.data)
