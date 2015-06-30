@@ -246,7 +246,8 @@ angular.module('scegratooApp')
                         'position',
                         'render',
                         'rotation',
-                        'translation'
+                        'translation',
+                        'url'
                       ])
                     ),
                     node.attributes
