@@ -40,41 +40,61 @@ Anforderungen: Webentwicklung, JavaScript Programmierung, 3D-Modellierung, Eclip
 - [x] remove sass
 - [x] tree view
 - [ ] side based widgets
-- [ ] widgets in 3d space
-- [ ] upload to server
-- [ ] pick already uploaded files from server
-- [ ] fix don't deselect element
+- [x] upload to server
+- [x] pick already uploaded files from server
 - [x] fork moveable
   - [x] add destroy method to unregister events, otherwise removed inlines keep listening to events (use observables)
+  - [ ] fix don't deselect element
+  - [ ] fix inlines loose moveable super powers when moved in the tree view
 - [ ] xbox controller input
 - [ ] related work
   - [ ] collaborative work on documents (tree, text, 3d, whatevs)
+  - [ ] widgets in 3d space
+- [ ] remove dat gui
 - [ ] gliederung
 
 ## Gliederung
 
 1. einleitung
   1. motivation
+2. grundlagen
+  1. roundtrip3d
     round-trip spuckt x3d aus: bearbeiten -> speichern -> wieder einlesen in r3d
     nativ in x3d arbeiten mit option auf collaboratives arbeiten
     x3dom schon vorhanden
-  2. grundlagen
-  3. related work
-    1. collaborative work
-2. konzeption
-  1. was
-  2. wie
-  3. probleme
+  1. x3d
+    1. x3dom
+  2. react
+    1. states and functional programming
+  3. koa
+  4. stuff that needs explaining
+3. related work
+  1. collaborative work
+  2. 3d widgets
+    1. http://www.tiltbrush.com/
+    2. x3d gizmos
+4. konzeption (pflichtenheft)
+  1. wie
+    1. server
+    2. client
+    3. interaction
+  3. problems
   4. wie zu lösen
-3. umsetzung
+5. umsetzung
+  1. used technologies
+  1. problems
+    1. why backbone sucks, why frameworks suck
   1. ...
-4. Auswertung
-  1. was
+6. case study
+  1. tasks
+  2. results
+7. Auswertung
   2. warum es das beste ist oder warum gescheitert
 
 
 ## Stack
 - [angularjs](http://angularjs.org/)
+- [react]()
 - [twitter bootstrap](http://getbootstrap.com/)
 
 ## License
