@@ -132,7 +132,7 @@ angular.module('scegratooApp')
         if (node && !node.contains(this.props.data)) {
           node.parentElement.removeChild(node)
           this.props.data.appendChild(node)
-        } else if (event.dataTransfer.files) {
+        } else if (event.dataTransfer.files.length > 0) {
           const files = flatten(event.dataTransfer.files) // turn into real array
 
           files.forEach(file => {
