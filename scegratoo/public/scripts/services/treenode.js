@@ -152,6 +152,15 @@ angular.module('scegratooApp')
             }
             reader.readAsText(file)
           })
+        } else if (event.dataTransfer.items.length > 0) {
+          const url = event.dataTransfer.getData('text/plain')
+
+          const transform = document.createElement('Transform')
+          const inline = document.createElement('Inline')
+
+          inline.setAttribute('url', url)
+          transform.appendChild(inline)
+          this.props.data.appendChild(transform)
         }
         this.getDOMNode().style.background = ''
       },
