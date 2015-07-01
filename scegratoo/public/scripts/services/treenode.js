@@ -6,7 +6,7 @@ const {
 } = window
 
 angular.module('scegratooApp')
-  .service('TreeNode', function Project (React, R, TreeNodeAttribute, Project, moveables) {
+  .service('TreeNode', function Project (React, R, TreeNodeAttribute, Project, moveables, X3D) {
     const {
       __,
       always,
@@ -143,11 +143,10 @@ angular.module('scegratooApp')
                 .uploadFile(file.name, event.target.result)
                 .catch(() => window.alert('Upload failed.'))
                 .then((result) => {
-                  const transform = document.createElement('Transform')
-                  const inline = document.createElement('Inline')
-                  inline.setAttribute('url', result.data)
-                  transform.appendChild(inline)
-                  this.props.data.appendChild(transform)
+                  this.props.data.appendChild(X3D.createElement('Inline', {
+                    url: result.data,
+                    namespacename: file.name
+                  }))
                 })
             }
             reader.readAsText(file)
@@ -155,12 +154,10 @@ angular.module('scegratooApp')
         } else if (event.dataTransfer.items.length > 0) {
           const url = event.dataTransfer.getData('text/plain')
 
-          const transform = document.createElement('Transform')
-          const inline = document.createElement('Inline')
-
-          inline.setAttribute('url', url)
-          transform.appendChild(inline)
-          this.props.data.appendChild(transform)
+          this.props.data.appendChild(X3D.createElement('Inline', {
+            url: url,
+            namespacename: url
+          }))
         }
         this.getDOMNode().style.background = ''
       },
