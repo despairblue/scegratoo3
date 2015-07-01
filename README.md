@@ -52,6 +52,7 @@ Anforderungen: Webentwicklung, JavaScript Programmierung, 3D-Modellierung, Eclip
   - [ ] widgets in 3d space
 - [x] remove dat gui
 - [ ] gliederung
+- [ ] refactor the attributes out of treenode
 
 ## Gliederung
 
