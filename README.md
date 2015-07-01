@@ -44,8 +44,8 @@ Anforderungen: Webentwicklung, JavaScript Programmierung, 3D-Modellierung, Eclip
 - [x] pick already uploaded files from server
 - [x] fork moveable
   - [x] add destroy method to unregister events, otherwise removed inlines keep listening to events (use observables)
-  - [ ] fix don't deselect element
-  - [ ] fix inlines loose moveable super powers when moved in the tree view
+  - [x] fix don't deselect element
+  - [x] fix inlines loose moveable super powers when moved in the tree view
 - [ ] xbox controller input
 - [ ] related work
   - [ ] collaborative work on documents (tree, text, 3d, whatevs)
