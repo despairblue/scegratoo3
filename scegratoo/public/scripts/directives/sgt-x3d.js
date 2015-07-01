@@ -1,14 +1,38 @@
 'use strict'
 
-const angular = window.angular
-const $ = window.$
-
-angular.module('scegratooApp')
-  .directive('sgtX3d', function SgtX3d ($window, X3domUtils, $http, $q, $templateCache, React, TreeView, _, R, InlineList, Project, Moveable, moveables) {
+window.angular.module('scegratooApp')
+  .directive('sgtX3d', function SgtX3d ($window, X3domUtils, $http, $q, $templateCache, React, TreeView, _, R, InlineList, Project, Moveable, moveables, $routeParams, x3dom, x3dQuery) {
     const {
       flatten,
       eq
     } = R
+    const $ = $window.$
+
+    let colorCache
+
+    const start = function (event) {
+      const inline = $(event.hitObject).lastParent('inline')
+      colorCache = inline.color()
+      inline.color('yellow')
+
+      document.addEventListener('mouseup', function stop (event) {
+        this.removeEventListener('mouseup', stop)
+        inline.color(colorCache)
+      })
+    }
+
+    const setUpInline = (inline, x3dNode) => {
+      // add eventlisteners to make it selectable
+      inline.addEventListener('mousedown', start)
+
+      // keep a weak reference from the tranlation to the moveable around to
+      // remove the event handlers the moveable registers on the translation
+      // again if the translation is removed
+      if (!moveables.has(inline)) {
+        moveables.set(inline.parentNode, new Moveable(x3dNode,
+          inline.parentNode, () => {}, 0, 'all'))
+      }
+    }
 
     return {
       restrict: 'AE',
@@ -32,27 +56,9 @@ angular.module('scegratooApp')
 
             return Project.getInlines()
           })
-          .then(({data: inlines}) => {
+          .then(({data: inlinesFromServer}) => {
             const div = $(document.createElement('div'))
             const div2 = $(document.createElement('div'))
-
-            // extract in directive
-            var gui = new $window.dat.GUI({autoPlace: false})
-            console.debug('Created ', gui)
-            element.parent().prepend($(gui.domElement)
-              .css('float', 'left')
-              .css('position', 'absolute')
-              .css('z-index', 1))
-            var guiCoordinates = gui.addFolder('Coordinates')
-            var guiSwitches = gui.addFolder('Switches')
-
-            var options = X3domUtils.setUp(div)
-
-            guiCoordinates.add(options, 'x').listen()
-            guiCoordinates.add(options, 'y').listen()
-            guiCoordinates.add(options, 'z').listen()
-            guiSwitches.add(options, 'useHitPnt')
-            guiSwitches.add(options, 'snapToGrid')
 
             element.append(div)
             element.append(div2)
@@ -63,10 +69,13 @@ angular.module('scegratooApp')
             scope.$watch(attrs.content, content => {
               div.html(content)
 
+              const x3dNode = div.children().get(0)
+              const inlines = flatten(div.get(0).querySelectorAll('inline'))
+
               const sidebar = (
                 <div>
                   <TreeView data={div.find('x3d').get(0)} />
-                  <InlineList inlines={inlines} />
+                  <InlineList inlines={inlinesFromServer} />
                 </div>
               )
 
@@ -78,6 +87,7 @@ angular.module('scegratooApp')
                 'position',
                 'orientation'
               ]
+
               const rerender = _.throttle(React.render, 100)
               const x3dObserver = new window.MutationObserver(mutations => {
                 mutations.forEach(mutation => {
@@ -96,14 +106,9 @@ angular.module('scegratooApp')
                         let inline = transform.children[0]
 
                         if (inline && inline.nodeName.toLowerCase() === 'inline') {
-                          let x3dNode = angular.element(inline).firstParent('x3d').get(0)
+                          let x3dNode = $(inline).firstParent('x3d').get(0)
 
-                          // keep a weak reference from the tranlation to the
-                          // moveable around to remove the event handlers the
-                          // again if the translation is removed
-                          if (!moveables.has(transform)) {
-                            moveables.set(transform, new Moveable(x3dNode, inline.parentElement, () => {}, 0, 'all'))
-                          }
+                          setUpInline(inline, x3dNode)
                         }
                       })
 
@@ -118,8 +123,23 @@ angular.module('scegratooApp')
                 subtree: true
               })
 
+              // take care of the inlines already in the scene
+
+              // rewrite all urls
+              inlines.forEach(inline => {
+                const url = inline.getAttribute('url')
+                const project = $routeParams.project
+
+                inline.setAttribute('url', `projects/${project}/src/${url}`)
+              })
+
+              // kick x3dom to init the runtime
+              x3dom.reload()
+
+              inlines.forEach(inline => setUpInline(inline, x3dNode))
+
               React.render(sidebar, div2.get(0))
-              options = X3domUtils.setUp(div)
+              X3domUtils.setUp(div)
             })
           })
       }

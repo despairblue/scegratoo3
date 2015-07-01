@@ -1,14 +1,8 @@
 'use strict'
 
-const angular = window.angular
-
-angular.module('scegratooApp')
-  .service('X3domUtils', function X3domutils ($window, $routeParams, $templateCache, x3dQuery, Moveable, moveables) {
-    let vecOffset = {
-      x: 0,
-      y: 0,
-      z: 0
-    }
+window.angular.module('scegratooApp')
+  .service('X3domUtils', function X3domutils ($window, $templateCache) {
+    const angular = $window.angular
     const options = {
       useHitPnt: false,
       snapToGrid: false,
@@ -17,68 +11,8 @@ angular.module('scegratooApp')
       z: ''
     }
     let inlines
-    let crosshairs
     let translationGizmoX
     let translationGizmoY
-    let colorCache
-    let selectionSphere
-
-    const start = function (event) {
-      // event.hitPnt is in global space so for this to work one would have to
-      // add it to the scene and translate it inside the move function.
-      // runtime.getCenter(hitObject) seems to return sth in local space
-      // which works
-      let translationString = ''
-      const inline = angular.element(event.hitObject).lastParent('inline')
-      const bbox = inline.runtime().getBBox()
-
-      selectionSphere = angular.element(`
-        <Transform scale="${bbox.max}" class='gui'>
-          <Shape>
-            <Appearance>
-              <Material diffuseColor="1 1 1" transparency="0.5"/>
-            </Appearance>
-            <Sphere />
-          </Shape>
-        </Transform>
-      `)
-
-      if (options.useHitPnt) {
-        vecOffset = new $window.x3dom.fields.SFVec3f(event.hitPnt[0], event.hitPnt[1], event.hitPnt[2])
-      } else {
-        // `runtime.getCenter` does not work with inlines, only with X3DShapeNode and X3DGeometryNode
-        // and even for a shape it returns always the same coordinates, so what does it actually return?
-        // TODO: test this w/o inlines.
-        // vecOffset = runtime.getCenter(inline)
-        console.debug(document.getElementsByTagName('shape')[1]._x3domNode.getCenter())
-
-        // on the other hand this is always null
-        vecOffset = inline.get(0)._x3domNode.getVolume().center
-      }
-
-      // add crosshairs
-      inline.get(0).parentNode.appendChild(crosshairs)
-      translationString = vecOffset.x + ' ' + vecOffset.y + ' ' + vecOffset.z
-      crosshairs.setAttribute('translation', translationString)
-
-      colorCache = inline.color()
-      inline.color('yellow').before(selectionSphere)
-    }
-
-    const move = function () {
-    }
-
-    const stop = function (event) {
-      const inline = angular.element(event.hitObject).lastParent('inline')
-
-      // remove the crosshair
-      if (crosshairs.parentNode) {
-        crosshairs.parentNode.removeChild(crosshairs)
-      }
-
-      selectionSphere.remove()
-      inline.color(colorCache)
-    }
 
     const processTranslationGizmoEventX = function (event) {
       let sensorToWorldMatrix
@@ -125,8 +59,8 @@ angular.module('scegratooApp')
     }
 
     const setUp = function (x3dContainer) {
-      const x3dNode = x3dContainer.children().get(0)
-      let loadCount = 0
+      // const x3dNode = x3dContainer.children().get(0)
+      // let loadCount = 0
       console.debug('Set up scene.')
 
       // fix x3dom swallowing exceptions in callback
@@ -134,16 +68,10 @@ angular.module('scegratooApp')
         console.error(e.stack)
       }
 
-      crosshairs = angular.element($templateCache.get('templates/crosshair.html')).get(0)
       translationGizmoX = angular.element($templateCache.get('templates/planeSensor-X.html')).get(0)
       translationGizmoY = angular.element($templateCache.get('templates/planeSensor-Y.html')).get(0)
 
       inlines = x3dContainer.find('inline')
-
-      angular.forEach(inlines, function (inline) {
-        const url = inline.getAttribute('url')
-        inline.setAttribute('url', `projects/${$routeParams.project}/${$routeParams.file.replace(/\/[^\/]*$/, '')}/${url}`)
-      })
 
       $window.x3dom.reload()
 
@@ -152,30 +80,8 @@ angular.module('scegratooApp')
         scene.appendChild(translationGizmoY)
       })
 
-      angular.forEach(inlines, function (inline) {
-        inline.addEventListener('mousedown', start)
-        inline.addEventListener('mouseup', stop)
-        inline.addEventListener('load', function () {
-          loadCount += 1
-          if (loadCount === inlines.length && x3dNode && x3dNode.runtime) {
-            window.x3dNode = x3dNode
-            x3dNode.runtime.showAll()
-          }
-        })
-
-        // keep a weak reference from the tranlation to the moveable around to
-        // remove the event handlers the moveable registers on the translation
-        // again if the translation is removed
-        if (!moveables.has(inline)) {
-          moveables.set(inline.parentNode, new Moveable(x3dNode,
-            inline.parentElement, move, 0, 'all'))
-        }
-      })
-
       translationGizmoX.children[0].addEventListener('onoutputchange', processTranslationGizmoEventX)
       translationGizmoY.children[0].addEventListener('onoutputchange', processTranslationGizmoEventY)
-
-      return options
     }
 
     return {
