@@ -50,7 +50,7 @@ Anforderungen: Webentwicklung, JavaScript Programmierung, 3D-Modellierung, Eclip
 - [ ] related work
   - [ ] collaborative work on documents (tree, text, 3d, whatevs)
   - [ ] widgets in 3d space
-- [ ] remove dat gui
+- [x] remove dat gui
 - [ ] gliederung
 
 ## Gliederung
