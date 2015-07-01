@@ -14,10 +14,12 @@ window.angular.module('scegratooApp')
       const inline = $(event.hitObject).lastParent('inline')
       colorCache = inline.color()
       inline.color('yellow')
+      inline.addClass('mousedown')
 
       document.addEventListener('mouseup', function stop (event) {
         this.removeEventListener('mouseup', stop)
         inline.color(colorCache)
+        inline.removeClass('mousedown')
       })
     }
 

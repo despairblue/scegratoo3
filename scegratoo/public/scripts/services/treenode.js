@@ -22,20 +22,30 @@ angular.module('scegratooApp')
       prop,
       toLower
     } = R
+
     const isInline = pipe(
         prop('nodeName'),
         toLower,
         eq('inline')
     )
+
     const isGUI = pipe(
       prop('className'),
       toLower,
       eq('gui')
     )
+
+    const isSelected = pipe(
+      prop('className'),
+      toLower,
+      eq('mousedown')
+    )
+
     const unlessInline = ifElse(
       isInline,
       always(undefined)
     )
+
     const bulletStyle = {
       width: '10px',
       height: '10px',
@@ -58,6 +68,9 @@ angular.module('scegratooApp')
     }
     const syncStyle = {
       color: 'blue'
+    }
+    const selected = {
+      background: 'rgb(249, 247, 90)'
     }
 
     let viewPointPosition
@@ -194,9 +207,10 @@ angular.module('scegratooApp')
         const runtime = this.props.runtime
         const children = filter(complement(isGUI), node.children)
         const collapsed = this.state.collapsed
+        const divStyle = isSelected(node) ? selected : undefined
 
         return (
-          <div>
+          <div style={divStyle}>
             <li ref='node' style={{listStyle: 'none'}}>
               <div
                 style={{display: 'flex'}}
@@ -236,7 +250,6 @@ angular.module('scegratooApp')
                       prop('name'),
                       toLower,
                       contains(__, [
-                        'class',
                         'def',
                         'diffusecolor',
                         'orientation',
