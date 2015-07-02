@@ -45,6 +45,8 @@ window.angular.module('scegratooApp')
       this._rotationOffset = null
       this._scaleOffset = null
 
+      this._bSphereRadius = null
+
       this._lastX = 0
       this._lastY = 0
       this._buttonState = 0
@@ -292,6 +294,9 @@ window.angular.module('scegratooApp')
         that._navType = that._runtime.navigationType()
         that._runtime.noNav()
 
+        // save object's bounding sphere's radius
+        that._bSphereRadius = that._moveable._x3domNode.getVolume().diameter / 2
+
         // calc view-aligned plane through original pick position
         that._isect = new x3dom.fields.SFVec3f(event.worldX, event.worldY, event.worldZ)
         that.calcViewPlane(that._isect)
@@ -350,7 +355,7 @@ window.angular.module('scegratooApp')
 
           // zoom with right mouse button (2), pan with left (1)
           if (that._buttonState === 2) {
-            track = that.translateZ(that._firstRay, pos[1])
+            track = that.translateXY(ray)
           } else if (that._buttonState === 1) {
             track = that.translateXY(ray)
           } else { // middle button: 4
@@ -368,6 +373,21 @@ window.angular.module('scegratooApp')
             if (!that._matrixTrafo) {
               if (that._buttonState === 4) {
                 that._moveable.setAttribute('rotation', track.toAxisAngle().toString())
+              } else if (that._buttonState === 2) {
+                // the unites the cursor was dragged
+                const movedX = track.subtract(that._translationOffset).x
+
+                // make movedX relative to the size of the object, the idea is
+                // that if you have a huge object and you move your mouse by one
+                // unit you don't want that object to by twice the size
+                const xRelativeToScale = movedX / that._bSphereRadius
+
+                // at the beginning this `xRelativeToScale` is 0, but actually
+                // we want it to be one, so that the scale does not change
+                // unless we move the cursor
+                const scaleFactor = xRelativeToScale + 1
+
+                that._moveable.setAttribute('scale', that._scaleOffset.multiply(scaleFactor))
               } else {
                 that._moveable.setAttribute('translation', track.toString())
               }
