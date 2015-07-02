@@ -35,6 +35,7 @@ window.angular.module('scegratooApp')
                     'position',
                     'render',
                     'rotation',
+                    'scale',
                     'translation',
                     'url'
                   ])

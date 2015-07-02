@@ -82,12 +82,13 @@ window.angular.module('scegratooApp')
               )
 
               const watchedAttributes = [
-                'translation',
-                'rotation',
                 'diffuseColor',
-                'render',
+                'orientation',
                 'position',
-                'orientation'
+                'render',
+                'rotation',
+                'scale',
+                'translation'
               ]
 
               const rerender = _.throttle(React.render, 100)
