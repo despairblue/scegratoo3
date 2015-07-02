@@ -6,44 +6,23 @@ const {
 } = window
 
 angular.module('scegratooApp')
-  .service('TreeNode', function Project (React, R, TreeNodeAttribute, Project, moveables, X3D) {
+  .service('TreeNode', function Project (React, R, TreeNodeAttributeList, Project, moveables, X3D) {
     const {
-      __,
-      always,
-      complement,
-      contains,
       eq,
-      filter,
       flatten,
-      ifElse,
-      map,
       mergeAll,
+      complement,
       pipe,
+      filter,
+      map,
       prop,
       toLower
     } = R
-
-    const isInline = pipe(
-        prop('nodeName'),
-        toLower,
-        eq('inline')
-    )
-
-    const isGUI = pipe(
-      prop('className'),
-      toLower,
-      eq('gui')
-    )
 
     const isSelected = pipe(
       prop('className'),
       toLower,
       eq('mousedown')
-    )
-
-    const unlessInline = ifElse(
-      isInline,
-      always(undefined)
     )
 
     const bulletStyle = {
@@ -58,17 +37,21 @@ angular.module('scegratooApp')
       marginRight: '5px',
       cursor: 'pointer'
     }
+
     const collapsedStyle = {
       background: '#d9d9d9'
     }
+
     const removeStyle = {
       color: 'red',
       marginLeft: '10px',
       marginRight: '10px'
     }
+
     const syncStyle = {
       color: 'blue'
     }
+
     const selected = {
       background: 'rgb(249, 247, 90)'
     }
@@ -76,8 +59,30 @@ angular.module('scegratooApp')
     let viewPointPosition
     let viewPointOrientation
 
+    const isGUI = pipe(
+      prop('className'),
+      toLower,
+      eq('gui')
+    )
+
+    const renderChildren = (node, TreeNode, runtime, children) => {
+      if (node.nodeName.toLowerCase() !== 'inline') {
+        return (
+          <ol>
+            {map(child =>
+              <TreeNode
+                data={child}
+                runtime={runtime}
+              />
+            )(children)}
+          </ol>
+        )
+      }
+    }
+
     const TreeNode = React.createClass({
       displayName: 'TreeNode',
+
       getInitialState: function () {
         return {
           collapsed: false,
@@ -89,10 +94,12 @@ angular.module('scegratooApp')
           dragEntered2: false
         }
       },
+
       propTypes: {
         data: React.PropTypes.object.isRequired,
         runtime: React.PropTypes.object.isRequired
       },
+
       componentDidMount: function () {
         const node = this.props.data
 
@@ -102,11 +109,12 @@ angular.module('scegratooApp')
             viewPointOrientation = event.orientation
           })
         }
-
       },
+
       clicked: function (event) {
         this.props.runtime.showObject(this.props.data, 'xAxis')
       },
+
       toggleVisibility: function (event) {
         const element = event.currentTarget.parentNode.nextSibling
 
@@ -122,19 +130,23 @@ angular.module('scegratooApp')
           })
         }
       },
+
       syncViewpoint: function (event) {
         const node = this.props.data
 
         node.setAttribute('orientation', `${viewPointOrientation[0].toString()} ${viewPointOrientation[1]}`)
         node.setAttribute('position', viewPointPosition.toString())
       },
+
       dragStart: function (event) {
         this.getDOMNode().style.opacity = 0.4
         event.node = this.props.data
       },
+
       dragEnd: function (event) {
         this.getDOMNode().style.opacity = 1
       },
+
       drop: function (event) {
         const node = event.node
         event.node = undefined
@@ -174,6 +186,7 @@ angular.module('scegratooApp')
         }
         this.getDOMNode().style.background = ''
       },
+
       dragEnter: function (event) {
         if (this.state.dragEntered1) {
           this.state.dragEntered2 = true
@@ -182,6 +195,7 @@ angular.module('scegratooApp')
           this.getDOMNode().style.background = 'rgb(203, 169, 198)'
         }
       },
+
       dragLeave: function (event) {
         if (this.state.dragEntered2) {
           this.state.dragEntered2 = false
@@ -190,10 +204,12 @@ angular.module('scegratooApp')
           this.getDOMNode().style.background = ''
         }
       },
+
       dragOver: function (event) {
         // enables the drop event at all, whoever thought of that api -.-
         event.preventDefault()
       },
+
       remove: function (event) {
         // detach the event handlers the moveable registered on the translation
         if (moveables.has(this.props.data)) {
@@ -202,80 +218,59 @@ angular.module('scegratooApp')
 
         this.props.data.parentElement.removeChild(this.props.data)
       },
+
       render: function () {
         const node = this.props.data
         const runtime = this.props.runtime
-        const children = filter(complement(isGUI), node.children)
         const collapsed = this.state.collapsed
+        const children = filter(complement(isGUI), node.children)
         const divStyle = isSelected(node) ? selected : undefined
 
         return (
-          <div style={divStyle}>
-            <li ref='node' style={{listStyle: 'none'}}>
+          <li ref='node' style={mergeAll([
+              {listStyle: 'none'},
+              divStyle
+            ])}>
+            <div style={{display: 'flex'}} >
               <div
-                style={{display: 'flex'}}
-              >
-                <div
-                  onClick={this.toggleVisibility}
-                  style={mergeAll([
-                    bulletStyle,
-                    collapsed && collapsedStyle
-                  ])}
-                />
-                <a
-                  draggable='true'
-                  data-id={node.id}
-                  onClick={this.clicked}
-                  onDragStart={this.dragStart}
-                  onDragEnd={this.dragEnd}
-                  onDragEnter={this.dragEnter}
-                  onDragLeave={this.dragLeave}
-                  onDragOver={this.dragOver}
-                  onDrop={this.drop}
-                >
-                  {`<${node.nodeName}>`}
-                </a>
-                {(node.nodeName.toLowerCase() !== 'scene') && <a onClick={this.remove} style={removeStyle} >X</a>}
-                {(node.nodeName.toLowerCase() === 'viewpoint') && <a onClick={this.syncViewpoint} style={syncStyle}>Sync</a>}
-                <br/>
-              </div>
-              <div style={{paddingLeft: '20px'}}>
-                {map(
-                  a => [
-                    <TreeNodeAttribute attribute={a} owner={node} />,
-                    <br/>
-                  ],
-                  filter(
-                    pipe(
-                      prop('name'),
-                      toLower,
-                      contains(__, [
-                        'def',
-                        'diffusecolor',
-                        'orientation',
-                        'position',
-                        'render',
-                        'rotation',
-                        'translation',
-                        'url'
-                      ])
-                    ),
-                    node.attributes
-                  )
-                )}
-                {unlessInline(node =>
-                  <ul>
-                    {map(child =>
-                      <TreeNode
-                        data={child}
-                        runtime={runtime}
-                      />
-                    )(children)}
-                  </ul>
-                )(node)}
-              </div>
-            </li>
-          </div>
+                onClick={this.toggleVisibility}
+                style={mergeAll([
+                  bulletStyle,
+                  collapsed && collapsedStyle
+                ])}
+              />
+
+              <a
+                draggable='true'
+                data-id={node.id}
+                onClick={this.clicked}
+                onDragStart={this.dragStart}
+                onDragEnd={this.dragEnd}
+                onDragEnter={this.dragEnter}
+                onDragLeave={this.dragLeave}
+                onDragOver={this.dragOver}
+                onDrop={this.drop}
+              >
+                {`<${node.nodeName}>`}
+              </a>
+
+              {(node.nodeName.toLowerCase() !== 'scene') && <a
+                onClick={this.remove}
+                style={removeStyle} >
+                X
+              </a>}
+
+              {(node.nodeName.toLowerCase() === 'viewpoint') && <a
+                onClick={this.syncViewpoint}
+                style={syncStyle}>
+                Sync
+              </a>}
+            </div>
+
+            <TreeNodeAttributeList node={node}/>
+
+            {renderChildren(node, TreeNode, runtime, children)}
+          </li>
         )
       }
     })
