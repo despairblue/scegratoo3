@@ -182,7 +182,8 @@ window.angular.module('scegratooApp')
     // Translation along plane parallel to viewing plane E:x=p+t*u+s*v
     Moveable.prototype.translateXY = function (l) {
       var track = null
-      var z = [], n = []
+      var z = []
+      var n = []
 
       for (var i = 0; i < 3; i++) {
         z[i] = []
@@ -315,10 +316,10 @@ window.angular.module('scegratooApp')
           if (mTrans) {
             that._matrixTrafo = x3dom.fields.SFMatrix4f.parse(mTrans).transpose()
 
-            var translation = new x3dom.fields.SFVec3f(0, 0, 0),
-              scaleFactor = new x3dom.fields.SFVec3f(1, 1, 1)
-            var rotation = new x3dom.fields.Quaternion(0, 0, 1, 0),
-              scaleOrientation = new x3dom.fields.Quaternion(0, 0, 1, 0)
+            var translation = new x3dom.fields.SFVec3f(0, 0, 0)
+            var scaleFactor = new x3dom.fields.SFVec3f(1, 1, 1)
+            var rotation = new x3dom.fields.Quaternion(0, 0, 1, 0)
+            var scaleOrientation = new x3dom.fields.Quaternion(0, 0, 1, 0)
 
             that._matrixTrafo.getTransform(translation, rotation, scaleFactor, scaleOrientation)
 
