@@ -9,18 +9,19 @@ body {
 
 x3d {
   width: 100%;
-}
-
-.fullpage {
-  display: flex;
-  /*flex-direction: row;*/
-  flex-wrap: wrap;
-}
-
-.fullpage > div:not(.dg) {
-  padding-bottom: 20px;
-  min-width: 500px;
   height: 100%;
+}
+
+.sgtX3d {
+  display: flex;
+  flex: 1;
+  align-items: stretch;
+}
+
+@media all and (max-width: 1000px) {
+  .sgtX3d {
+    flex-direction: column;
+  }
 }
 
 a {

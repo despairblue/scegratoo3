@@ -8,6 +8,13 @@ window.angular.module('scegratooApp')
     } = R
     const $ = $window.$
 
+    const styles = {
+      item: {
+        padding: '5px',
+        flex: '1'
+      }
+    }
+
     let colorCache
 
     const start = function (event) {
@@ -59,14 +66,11 @@ window.angular.module('scegratooApp')
             return Project.getInlines()
           })
           .then(({data: inlinesFromServer}) => {
-            const div = $(document.createElement('div'))
-            const div2 = $(document.createElement('div'))
+            const div = $(document.createElement('div')).css(styles.item)
+            const div2 = $(document.createElement('div')).css(styles.item)
 
             element.append(div)
             element.append(div2)
-
-            // styling
-            element.addClass('fullpage')
 
             scope.$watch(attrs.content, content => {
               div.html(content)
@@ -76,7 +80,7 @@ window.angular.module('scegratooApp')
 
               const sidebar = (
                 <div>
-                  <TreeView data={div.find('x3d').get(0)} />
+                  <TreeView data={x3dNode} />
                   <InlineList inlines={inlinesFromServer} />
                 </div>
               )
