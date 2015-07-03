@@ -52,7 +52,7 @@ Anforderungen: Webentwicklung, JavaScript Programmierung, 3D-Modellierung, Eclip
   - [ ] widgets in 3d space
 - [x] remove dat gui
 - [ ] gliederung
-- [ ] refactor the attributes out of treenode
+- [x] refactor the attributes out of treenode
 
 ## Gliederung
 
@@ -74,6 +74,8 @@ Anforderungen: Webentwicklung, JavaScript Programmierung, 3D-Modellierung, Eclip
   2. 3d widgets
     1. http://www.tiltbrush.com/
     2. x3d gizmos
+    3. https://github.com/x3dom/component-editor
+    4. http://3d.meteor.com/
 4. konzeption (pflichtenheft)
   1. wie
     1. server
