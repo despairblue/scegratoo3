@@ -37,3 +37,8 @@ a {
     color: hsla(0, 0%, 0%, 1);
     padding: 0.2em 0;
 }
+
+/* fuck firefox border shadows */
+:invalid {
+  box-shadow: none;
+}
