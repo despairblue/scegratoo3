@@ -44,7 +44,11 @@ window.angular.module('scegratooApp')
             onChange={this.handleChangeEvent}
             onMouseEnter={() => this.getDOMNode().focus()}
             style={mergeAll([
-              {width: '50px'},
+              {
+                width: '50px',
+                padding: '0px',
+                margin: '1px'
+              },
               this.props.style
             ])}
           />
