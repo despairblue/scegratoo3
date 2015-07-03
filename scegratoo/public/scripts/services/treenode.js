@@ -267,9 +267,10 @@ angular.module('scegratooApp')
               </a>}
             </div>
 
-            <TreeNodeAttributeList node={node}/>
-
-            {renderChildren(node, TreeNode, runtime, children)}
+            <div>
+              <TreeNodeAttributeList node={node}/>
+              {renderChildren(node, TreeNode, runtime, children)}
+            </div>
           </li>
         )
       }
