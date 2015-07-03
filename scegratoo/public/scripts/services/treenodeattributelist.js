@@ -23,7 +23,7 @@ window.angular.module('scegratooApp')
         return (
           <div style={{paddingLeft: '20px'}}>
             {map(
-              a => [<TreeNodeAttribute attribute={a} owner={node} />, <br/>],
+              a => <TreeNodeAttribute attribute={a} owner={node} />,
               filter(
                 pipe(
                   prop('name'),

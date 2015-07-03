@@ -16,7 +16,7 @@ window.angular.module('scegratooApp')
       flatten
     )
 
-    return React.createClass({
+    const TreeNodeAttribute = React.createClass({
       displayName: 'TreeNodeAttribute',
       propTypes: {
         owner: React.PropTypes.object.isRequired,
@@ -35,30 +35,59 @@ window.angular.module('scegratooApp')
         if (attribute.name === 'render') {
           const checked = attribute.value === 'true'
           return (
-            <span>
-              {attribute.name}: <input type='checkbox' checked={checked} onChange={this.changeHandler} />
-            </span>
+            <div style={styles.container}>
+              <div style={styles.title}>
+                {attribute.name}:
+              </div>
+              <div style={styles.item}>
+                <input type='checkbox' checked={checked} onChange={this.changeHandler} />
+              </div>
+            </div>
           )
         } else if (contains(attribute.name, ['translation', 'rotation', 'position', 'orientation', 'scale'])) {
           return (
-            <span>
-              {attribute.name}: {splitVector(attribute.value).map((coordinate, index) =>
+            <div style={styles.container}>
+              <div style={styles.title}>
+                {attribute.name}:
+              </div>
+              {splitVector(attribute.value).map((coordinate, index) =>
                 <TreeNodeAttributeTextbox
                   attributeName={attribute.name}
                   index={index}
                   owner={this.props.owner}
-                  style={{width: '100px'}}
+                  style={styles.item}
                 />
               )}
-            </span>
+            </div>
           )
         } else {
           return (
-            <span>
-              {attribute.name}: {attribute.value}
-            </span>
+            <div style={styles.container}>
+              <div style={styles.title}>
+                {attribute.name}:
+              </div>
+              <div style={styles.item}>
+                {attribute.value}
+              </div>
+            </div>
           )
         }
       }
     })
+
+    const styles = {
+      container: {
+        display: 'flex',
+        alignItems: 'stretch'
+      },
+      item: {
+        width: '',
+        flexGrow: '1'
+      },
+      title: {
+        width: '100px'
+      }
+    }
+
+    return TreeNodeAttribute
   })
