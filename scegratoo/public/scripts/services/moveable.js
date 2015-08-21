@@ -268,6 +268,10 @@ window.angular.module('scegratooApp')
 
     // start object movement, switch from navigation to interaction
     Moveable.prototype.start = function (event) {
+      // prevent event propagating to child nodes, thus also setting their translations
+      // only the clicked shape's transform node should be changed
+      event.stopPropagation()
+
       var that = this._iMove
 
       // use mouse button to distinguish between parallel or orthogonal movement or rotation
