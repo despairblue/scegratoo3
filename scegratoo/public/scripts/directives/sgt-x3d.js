@@ -6,7 +6,10 @@ window.angular.module('scegratooApp')
       flatten,
       eq
     } = R
-    const $ = $window.$
+    const {
+      $,
+      Rx
+    } = $window
 
     const styles = {
       item: {
@@ -23,11 +26,14 @@ window.angular.module('scegratooApp')
       inline.color('yellow')
       inline.addClass('mousedown')
 
-      document.addEventListener('mouseup', function stop (event) {
-        this.removeEventListener('mouseup', stop)
-        inline.color(colorCache)
-        inline.removeClass('mousedown')
-      })
+      Rx.Observable
+        .fromEvent(document, 'mouseup')
+        .take(1)
+        .forEach(function stop (event) {
+          inline.color(colorCache)
+          inline.removeClass('mousedown')
+          console.log('tada')
+        })
     }
 
     const setUpInline = (inline, x3dNode) => {
