@@ -19,6 +19,7 @@ window.angular.module('scegratooApp')
     }
 
     let colorCache
+    let crossHairs
 
     const start = function (event) {
       const inline = $(event.hitObject).lastParent('inline')
@@ -26,13 +27,20 @@ window.angular.module('scegratooApp')
       inline.color('yellow')
       inline.addClass('mousedown')
 
+      // add crossHairs
+      inline.get(0).parentNode.appendChild(crossHairs)
+
       Rx.Observable
         .fromEvent(document, 'mouseup')
         .take(1)
         .forEach(function stop (event) {
           inline.color(colorCache)
           inline.removeClass('mousedown')
-          console.log('tada')
+
+          // remove the crosshair
+          if (crossHairs.parentNode) {
+            crossHairs.parentNode.removeChild(crossHairs)
+          }
         })
     }
 
@@ -77,6 +85,8 @@ window.angular.module('scegratooApp')
 
             element.append(div)
             element.append(div2)
+
+            crossHairs = window.angular.element($templateCache.get('templates/crosshair.html')).get(0)
 
             scope.$watch(attrs.content, content => {
               div.html(content)
