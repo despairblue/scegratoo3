@@ -3,10 +3,11 @@
   "version": "0.0.0",
   "main": "index.js",
   "scripts": {
+    "prestart": "webpack --config webpack-production.config.js",
     "start": "DEBUG=koa* node index.js",
     "commit": "git-cz",
     "prehot": "npm run watchServer &",
-    "hot": "webpack-dev-server --content-base scegratoo/public/ --host 0.0.0.0 --hot",
+    "hot": "NODE_ENV=development webpack-dev-server --content-base scegratoo/public/ --host 0.0.0.0 --hot",
     "watchServer": "DEBUG=koa* nodemon --debug --watch scegratoo index.js",
     "watchClient": "browser-sync start --proxy localhost:5000 --files \"scegratoo/public/**/*\"",
     "debug": "node-inspector --save-live-edit",
