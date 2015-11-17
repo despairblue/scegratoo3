@@ -59,7 +59,9 @@
     "url": "https://github.com/despairblue/scegratoo3"
   },
   "license": "Apache-2.0",
-  "czConfig": {
-    "path": "node_modules/cz-conventional-changelog"
+  "config": {
+    "commitizen": {
+      "path": "node_modules/cz-conventional-changelog"
+    }
   }
 }
