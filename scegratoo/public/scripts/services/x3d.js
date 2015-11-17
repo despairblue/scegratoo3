@@ -1,24 +1,16 @@
-'use strict'
+require('./moveable')
 
-window.angular.module('scegratooApp')
-  .service('X3D', function X3D (Moveable) {
-    const Inline = options => {
-      const transform = document.createElement('Transform')
-      const inline = document.createElement('Inline')
-      Object.keys(options)
-        .forEach(key => inline.setAttribute(key, options[key]))
-      transform.appendChild(inline)
-      return transform
-    }
+import angular from 'angular'
+import React from 'react'
+
+angular.module('scegratooApp')
+  .service('X3D', function X3D () {
+    const div = document.createElement('div')
 
     return {
-      createElement: (tag, options) => {
-        switch (tag.toLowerCase()) {
-          case 'inline':
-            return Inline(options)
-          default:
-            throw new Error(`The tag '${tag}' is not supported. Make sure you didn't mistype it.`)
-        }
+      renderJSX: node => {
+        React.render(node, div)
+        return div.children[0]
       }
     }
   })

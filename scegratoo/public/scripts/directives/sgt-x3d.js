@@ -1,16 +1,22 @@
-'use strict'
+require('../services/x3dom-utils')
+require('../services/inline-list.js')
+require('../services/project')
+require('../services/moveable')
+require('../services/moveables')
+require('../services/x3dom')
+require('../services/x3d-query')
+
+import $ from 'jquery'
+import Rx from 'rx'
+import React from 'react'
+import _ from 'lodash'
+import {
+  flatten,
+  eq
+} from 'ramda'
 
 window.angular.module('scegratooApp')
-  .directive('sgtX3d', function SgtX3d ($window, X3domUtils, $http, $q, $templateCache, React, TreeView, _, R, InlineList, Project, Moveable, moveables, $routeParams, x3dom, x3dQuery) {
-    const {
-      flatten,
-      eq
-    } = R
-    const {
-      $,
-      Rx
-    } = $window
-
+  .directive('sgtX3d', function SgtX3d ($window, X3domUtils, $http, $q, $templateCache, InlineList, Project, Moveable, moveables, $routeParams, x3dom, x3dQuery, $injector) {
     const styles = {
       item: {
         padding: '5px',
@@ -18,6 +24,7 @@ window.angular.module('scegratooApp')
       }
     }
 
+    let TreeView = $injector.invoke(require('../services/treeview'))
     let colorCache
     let crossHairs
 
@@ -94,7 +101,7 @@ window.angular.module('scegratooApp')
               const x3dNode = div.children().get(0)
               const inlines = flatten(div.get(0).querySelectorAll('inline'))
 
-              const sidebar = (
+              let sidebar = (
                 <div>
                   <TreeView data={x3dNode} />
                   <InlineList inlines={inlinesFromServer} />
@@ -139,6 +146,19 @@ window.angular.module('scegratooApp')
                   }
                 })
               })
+
+              if (module.hot) {
+                module.hot.accept('../services/treeview', function () {
+                  TreeView = $injector.invoke(require('../services/treeview'))
+                  sidebar = (
+                    <div>
+                      <TreeView data={x3dNode} />
+                      <InlineList inlines={inlinesFromServer} />
+                    </div>
+                  )
+                  rerender(sidebar, div2.get(0))
+                })
+              }
 
               x3dObserver.observe(div.find('scene').get(0), {
                 attributes: true,

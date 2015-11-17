@@ -1,4 +1,4 @@
-'use strict'
+import angular from 'angular'
 
-window.angular.module('scegratooApp')
+angular.module('scegratooApp')
   .value('x3dom', window.x3dom)

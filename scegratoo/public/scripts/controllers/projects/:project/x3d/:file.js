@@ -1,6 +1,8 @@
-'use strict'
+require('../../../../services/project')
+require('../../../../directives/sgt-x3d')
+require('../../../../directives/sgt-navigation-bar')
 
-const angular = window.angular
+import angular from 'angular'
 
 angular.module('scegratooApp')
   .controller('ProjectsProjectX3dFileCtrl', function ($scope, $routeParams, Project) {

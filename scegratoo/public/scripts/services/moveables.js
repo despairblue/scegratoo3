@@ -1,6 +1,6 @@
-'use strict'
+import angular from 'angular'
 
-window.angular.module('scegratooApp')
+angular.module('scegratooApp')
   .service('moveables', function () {
     return new WeakMap()
   })

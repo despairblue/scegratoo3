@@ -1,6 +1,4 @@
-'use strict'
-
-const angular = window.angular
+import angular from 'angular'
 
 angular.module('scegratooApp')
   .service('x3dQuery', function x3dQuery () {
