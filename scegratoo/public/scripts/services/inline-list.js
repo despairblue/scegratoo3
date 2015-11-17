@@ -1,7 +1,8 @@
-'use strict'
+import angular from 'angular'
+import React from 'react'
 
-window.angular.module('scegratooApp')
-  .service('InlineList', function InlineList (React, Project, $routeParams) {
+angular.module('scegratooApp')
+  .service('InlineList', function InlineList (Project, $routeParams) {
     return React.createClass({
       displayName: 'InlineList',
 

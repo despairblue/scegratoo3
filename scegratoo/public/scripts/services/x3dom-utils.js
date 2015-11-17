@@ -1,6 +1,6 @@
-'use strict'
+import angular from 'angular'
 
-window.angular.module('scegratooApp')
+angular.module('scegratooApp')
   .service('X3domUtils', function X3domutils ($window, $templateCache) {
     const angular = $window.angular
     const options = {

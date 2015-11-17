@@ -1,13 +1,22 @@
-'use strict'
+require('../services/x3dom-utils')
+require('../services/inline-list.js')
+require('../services/project')
+require('../services/moveable')
+require('../services/moveables')
+require('../services/x3dom')
+require('../services/x3d-query')
+
+import $ from 'jquery'
+import Rx from 'rx'
+import React from 'react'
+import _ from 'lodash'
+import {
+  flatten,
+  eq
+} from 'ramda'
 
 window.angular.module('scegratooApp')
-  .directive('sgtX3d', function SgtX3d ($window, X3domUtils, $http, $q, $templateCache, React, TreeView, _, R, InlineList, Project, Moveable, moveables, $routeParams, x3dom, x3dQuery) {
-    const {
-      flatten,
-      eq
-    } = R
-    const $ = $window.$
-
+  .directive('sgtX3d', function SgtX3d ($window, X3domUtils, $http, $q, $templateCache, InlineList, Project, Moveable, moveables, $routeParams, x3dom, x3dQuery, $injector) {
     const styles = {
       item: {
         padding: '5px',
@@ -15,7 +24,9 @@ window.angular.module('scegratooApp')
       }
     }
 
+    let TreeView = $injector.invoke(require('../services/treeview'))
     let colorCache
+    let crossHairs
 
     const start = function (event) {
       const inline = $(event.hitObject).lastParent('inline')
@@ -23,11 +34,21 @@ window.angular.module('scegratooApp')
       inline.color('yellow')
       inline.addClass('mousedown')
 
-      document.addEventListener('mouseup', function stop (event) {
-        this.removeEventListener('mouseup', stop)
-        inline.color(colorCache)
-        inline.removeClass('mousedown')
-      })
+      // add crossHairs
+      inline.get(0).parentNode.appendChild(crossHairs)
+
+      Rx.Observable
+        .fromEvent(document, 'mouseup')
+        .take(1)
+        .forEach(function stop (event) {
+          inline.color(colorCache)
+          inline.removeClass('mousedown')
+
+          // remove the crosshair
+          if (crossHairs.parentNode) {
+            crossHairs.parentNode.removeChild(crossHairs)
+          }
+        })
     }
 
     const setUpInline = (inline, x3dNode) => {
@@ -72,13 +93,15 @@ window.angular.module('scegratooApp')
             element.append(div)
             element.append(div2)
 
+            crossHairs = window.angular.element($templateCache.get('templates/crosshair.html')).get(0)
+
             scope.$watch(attrs.content, content => {
               div.html(content)
 
               const x3dNode = div.children().get(0)
               const inlines = flatten(div.get(0).querySelectorAll('inline'))
 
-              const sidebar = (
+              let sidebar = (
                 <div>
                   <TreeView data={x3dNode} />
                   <InlineList inlines={inlinesFromServer} />
@@ -123,6 +146,19 @@ window.angular.module('scegratooApp')
                   }
                 })
               })
+
+              if (module.hot) {
+                module.hot.accept('../services/treeview', function () {
+                  TreeView = $injector.invoke(require('../services/treeview'))
+                  sidebar = (
+                    <div>
+                      <TreeView data={x3dNode} />
+                      <InlineList inlines={inlinesFromServer} />
+                    </div>
+                  )
+                  rerender(sidebar, div2.get(0))
+                })
+              }
 
               x3dObserver.observe(div.find('scene').get(0), {
                 attributes: true,

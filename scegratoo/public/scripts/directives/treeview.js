@@ -1,9 +1,10 @@
-'use strict'
+require('./treeview')
 
-const angular = window.angular
+import angular from 'angular'
+import React from 'react'
 
 angular.module('scegratooApp')
-  .directive('treeview', function (React, TreeView) {
+  .directive('treeview', function (TreeView) {
     return {
       // template: '',
       restrict: 'AE',

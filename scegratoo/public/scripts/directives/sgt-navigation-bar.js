@@ -1,11 +1,11 @@
-'use strict';
+import angular from 'angular'
 
-angular.module('scegratooApp').directive('sgtNavigationBar', function() {
+angular.module('scegratooApp').directive('sgtNavigationBar', function () {
   return {
     templateUrl: 'views/directives/sgt-navigation-bar.html',
     restrict: 'AE',
     scope: true,
-    link: function postLink(scope, element) {
+    link: function postLink (scope, element) {
       scope.items = [{
         text: 'X3D',
         href: 'x3d'
@@ -23,5 +23,5 @@ angular.module('scegratooApp').directive('sgtNavigationBar', function() {
       element.addClass('navbar navbar-default navbar-fixed-top')
       element.attr('role', 'navigation')
     }
-  };
-});
+  }
+})

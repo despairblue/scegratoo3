@@ -1,6 +1,6 @@
-'use strict'
+import angular from 'angular'
 
-window.angular.module('scegratooApp')
+angular.module('scegratooApp')
   .service('Project', function Project ($resource, $http, $routeParams) {
     const route = '/projects/:project'
     const resource = $resource(route)

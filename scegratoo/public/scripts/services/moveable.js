@@ -1,6 +1,6 @@
-'use strict'
+import angular from 'angular'
 
-window.angular.module('scegratooApp')
+angular.module('scegratooApp')
   .service('Moveable', function (x3dom) {
     /*
     * X3DOM JavaScript Library
@@ -277,15 +277,15 @@ window.angular.module('scegratooApp')
       // use mouse button to distinguish between parallel or orthogonal movement or rotation
       switch (that._mode) {
         case 'translation':
-        that._buttonState = (event.button === 4) ? 1 : (event.button & 3)
-        break
+          that._buttonState = (event.button === 4) ? 1 : (event.button & 3)
+          break
         case 'rotation':
-        that._buttonState = 4
-        break
+          that._buttonState = 4
+          break
         case 'all':
         default:
-        that._buttonState = event.button
-        break
+          that._buttonState = event.button
+          break
       }
 
       if (!that._drag && that._buttonState) {
