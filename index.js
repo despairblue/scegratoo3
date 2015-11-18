@@ -7,6 +7,7 @@ require('babel-core/register')({
   // sourceFileName: '(filenameRelative).es6',
   sourceRoot: 'babel'
 })
+require('babel-polyfill')
 
 global.Promise = require('bluebird')
 Promise.longStackTraces()
