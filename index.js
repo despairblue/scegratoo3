@@ -1,6 +1,6 @@
 Error.stackTraceLimit = Infinity
 
-require('babel/register')({
+require('babel-core/register')({
   // necessary so that the local app/node_modules/* will be transpiled
   only: /scegratoo/,
   sourceMaps: 'inline',

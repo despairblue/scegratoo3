@@ -61,5 +61,10 @@
     "commitizen": {
       "path": "node_modules/cz-conventional-changelog"
     }
+  },
+  "babel": {
+    "presets": [
+      "es2015"
+    ]
   }
 }

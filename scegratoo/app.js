@@ -1,20 +1,16 @@
-const path = require('path')
+import router from 'router'
+
 const app = require('koa')()
-const router = require('router')
-const responseTime = require('response-time')()
-const logger = require('logger')()
-const transpile = require('transpile')({
-  root: path.join(__dirname, 'public')
-}, {
-  sourceMaps: 'inline'
-})
+const responseTime = require('response-time').default()
+const logger = require('logger').default()
+const koaStatic = require('koa-static')('scegratoo/public')
 
 const port = process.env.PORT || 5000
 
 app
   .use(responseTime)
   .use(logger)
-  .use(transpile)
+  .use(koaStatic)
   .use(router.routes())
   .use(router.allowedMethods())
 
